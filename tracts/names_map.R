@@ -1,7 +1,7 @@
 # Map of potential tract names
 # For community advisory review and refinement
 # Michele Claibourn
-# 2022-06-23
+# 2022-07-01
 
 # Setup ----
 library(tidyverse)
@@ -32,16 +32,24 @@ ggplot(tracts) + geom_sf(aes(fill = TRACTCE))
 tracts <- tracts %>% 
   left_join(names, by = c("TRACTCE" = "tract"))
 
-# Map ----
 tracts <- st_transform(tracts, crs = 4326)
+saveRDS(tracts, file = "tractnames.RDS")
+
+
+# Map ----
+library(ggthemes)
+tracts <- readRDS("tractnames.RDS")
+
+pal <- colorFactor(palette = tableau_color_pal(palette = "Tableau 20")(17), tracts$TRACTCE)
 
 leaflet(tracts) %>% 
-  #addTiles() %>% 
+  addTiles() %>% 
   #addProviderTiles("CartoDB.Positron") %>% 
-  addProviderTiles("Esri.NatGeoWorldMap") %>% 
-  addPolygons(color = "black",
+  #addProviderTiles("Esri.NatGeoWorldMap") %>% 
+  addPolygons(fillColor = ~ pal(TRACTCE),
+              fillOpacity = 0.3,
+              color = ~ pal(TRACTCE),
               weight = 1,
               popup = paste0("Tract Number: ", tracts$TRACTCE, "<br>",
                              "Notes/Names: ", tracts$names)) 
 
-saveRDS(tracts, file = "tractnames.RDS")
