@@ -1,0 +1,46 @@
+---
+title: "Place Names"
+date: "6/23/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(leaflet)
+
+tracts <- readRDS("tractnames.RDS")
+```
+
+## Eastern Shore Place Names {.tabset}
+The maps below summarize the notes and names generated from the Community Advisory Committee.
+
+* Move between the tabs to see the tracts overlaid on different base maps with different underlying details.
+* Zoom and center a map to view the area defined by a census tract more closely.
+* Click anywhere within a tract to review the notes and potential names for that tract.
+
+### Base Esri
+```{r map1, fig.fullwidth = TRUE}
+leaflet(tracts) %>% 
+  #addTiles() %>% 
+  addProviderTiles("Esri.DeLorme") %>% 
+  addPolygons(color = "black",
+              weight = 2,
+              fillOpacity = .1,
+              popup = paste0("Tract Number: ", tracts$TRACTCE, "<br>",
+                             "Notes/Names: ", tracts$names))
+```
+
+### Base OSM
+```{r map2, fig.fullwidth = TRUE}
+leaflet(tracts) %>% 
+  addTiles() %>% 
+  #addProviderTiles("Esri.NatGeoWorldMap") %>% 
+  addPolygons(color = "black",
+              weight = 2,
+              fillOpacity = .1,
+              popup = paste0("Tract Number: ", tracts$TRACTCE, "<br>",
+                             "Notes/Names: ", tracts$names))
+```
+
