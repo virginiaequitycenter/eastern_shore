@@ -2,3 +2,5 @@
 .Rhistory
 dataraw/
 *.gz
+datatrends/
+tempdata/
