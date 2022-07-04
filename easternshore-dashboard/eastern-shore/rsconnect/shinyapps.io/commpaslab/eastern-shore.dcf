@@ -1,0 +1,13 @@
+name: eastern-shore
+title: eastern-shore
+username:
+account: commpaslab
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3789597
+bundleId: 5861249
+url: https://commpaslab.shinyapps.io/eastern-shore/
+when: 1651511908.24478
+lastSyncTime: 1651511908.24478
+asMultiple: FALSE
+asStatic: FALSE
