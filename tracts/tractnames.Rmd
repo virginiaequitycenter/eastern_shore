@@ -1,6 +1,6 @@
 ---
-title: "Place Names"
-date: "6/23/2022"
+title: "Eastern Shore Place Names"
+subtitle: "Initial Census Tract Descriptions"
 output: html_document
 ---
 
@@ -14,20 +14,23 @@ library(ggthemes)
 tracts <- readRDS("tractnames.RDS")
 pal <- colorFactor(palette = tableau_color_pal(palette = "Tableau 20")(17), tracts$TRACTCE)
 
+blkgps <- readRDS("blkgpnames.RDS")
+pal2 <- colorFactor(palette = tableau_color_pal(palette = "Tableau 20")(20), blkgps$blkgp_color)
+
+
 ```
 
-## Eastern Shore Place Names {.tabset}
-The maps below summarize the notes and names generated from the Community Advisory Committee.
+## Eastern Shore Census Tracts {.tabset}
+The maps below summarize the notes and names for the 2020 Eastern Shore Census tracts generated from the May 2, 2022 Community Advisory Committee meeting.
 
 * Move between the tabs to see the tracts overlaid on different base maps with different underlying details.
-* Zoom and center a map to view the area defined by a census tract more closely.
-* Click anywhere within a tract to review the notes and potential names for that tract.
+* Zoom and center a map to view the area defined by a census tract more closely and reveal more detail.
+* Click anywhere within a tract to review the notes and names provided for that tract.
 
-### Base OSM
-```{r map2, fig.fullwidth = TRUE}
+### Minimal Base Map
+```{r map1, fig.width = 10}
 leaflet(tracts) %>% 
   addTiles() %>% 
-  #addProviderTiles("Esri.NatGeoWorldMap") %>% 
   addPolygons(fillColor = ~ pal(TRACTCE),
               fillOpacity = 0.3,
               color = ~ pal(TRACTCE),
@@ -36,11 +39,10 @@ leaflet(tracts) %>%
                              "Notes/Names: ", tracts$names))
 ```
 
-### Base Esri
-```{r map1, fig.fullwidth = TRUE}
+### More Detailed Base Map
+```{r map2, fig.width = 10}
 leaflet(tracts) %>% 
-  #addTiles() %>% 
-  addProviderTiles("Esri.DeLorme") %>% 
+  addProviderTiles("Esri.WorldStreetMap") %>% 
   addPolygons(fillColor = ~ pal(TRACTCE),
               fillOpacity = 0.3,
               color = ~ pal(TRACTCE),
@@ -49,4 +51,51 @@ leaflet(tracts) %>%
                              "Notes/Names: ", tracts$names))
 ```
 
+### Satellite Imagery Base Map
+```{r map3, fig.width = 10}
+leaflet(tracts) %>% 
+  addProviderTiles("Esri.WorldImagery") %>% 
+  addPolygons(fillColor = ~ pal(TRACTCE),
+              fillOpacity = 0.3,
+              color = ~ pal(TRACTCE),
+              weight = 2,
+              popup = paste0("Tract Number: ", tracts$TRACTCE, "<br>",
+                             "Notes/Names: ", tracts$names))
+```
+
+## Eastern Shore Block Groups {.tabset}
+Many measures in the American Community Survey are also provided at the block group level (the smallest geographic unit for which sample data is released). The block group geography is provided below for comparison, and to facilitate future naming choices.
+
+### Minimal Base Map
+```{r map4, fig.width = 10}
+leaflet(blkgps) %>% 
+  addTiles() %>% 
+  addPolygons(fillColor = ~ pal2(blkgp_color),
+              fillOpacity = 0.3,
+              color = ~ pal2(blkgp_color),
+              weight = 2,
+              popup = paste0("Tract Number.Block Group: ", blkgps$tract_blkgp))
+```
+
+### More Detailed Base Map
+```{r map5, fig.width = 10}
+leaflet(blkgps) %>% 
+  addProviderTiles("Esri.WorldStreetMap") %>% 
+  addPolygons(fillColor = ~ pal2(blkgp_color),
+              fillOpacity = 0.3,
+              color = ~ pal2(blkgp_color),
+              weight = 2,
+              popup = paste0("Tract Number.Block Group: ", blkgps$tract_blkgp))
+```
+
+### Satellite Imagery Base Map
+```{r map6, fig.width = 10}
+leaflet(blkgps) %>% 
+  addProviderTiles("Esri.WorldImagery") %>% 
+  addPolygons(fillColor = ~ pal2(blkgp_color),
+              fillOpacity = 0.3,
+              color = ~ pal2(blkgp_color),
+              weight = 2,
+              popup = paste0("Tract Number.Block Group: ", blkgps$tract_blkgp))
+```
 
