@@ -15,7 +15,7 @@ Building a data collection for Eastern Shore climate justice work/platform.
 ### Hazards and Risks
 * [National Flood Hazard Layer's 1% and 2% annual floodplains](https://virginiaequitycenter.github.io/eastern_shore/nfhl_eastern.html)
 * [Natural hazard risk/FEMA's National Risk Index](https://virginiaequitycenter.github.io/eastern_shore/fema_nri_eastern.html)
-* [FEMA National Flood Insurance Program Claims](https://virginiaequitycenter.github.io/eastern_shore/femaclaims_cville.html)
+* [FEMA National Flood Insurance Program Claims](https://virginiaequitycenter.github.io/eastern_shore/femaclaims_eastern.html)
 * [EJSCREEN Environmental Indicators](https://virginiaequitycenter.github.io/eastern_shore/ejscreen_eastern.html)
 * [Estimated Lead Exposure Risk](https://virginiaequitycenter.github.io/eastern_shore/lead_exposure_eastern.html)
 * [CDC PLACES Health Outcomes](https://virginiaequitycenter.github.io/eastern_shore/cdcplaces_eastern.html)
