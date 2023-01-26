@@ -1,2 +1,2 @@
 # eastern_shore
-Virginia Easter Shore Equity Atlas Repo
+Virginia Eastern Shore Equity Atlas Repo
