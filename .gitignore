@@ -1,6 +1,7 @@
-.Rproj.user
+.Rproj.user/
 .Rhistory
 dataraw/
 *.gz
 data/
 tempdata/
+.DS_Store
