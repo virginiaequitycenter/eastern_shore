@@ -1,4 +1,6 @@
-# Published version
+####################
+# Archived version #
+####################
 # Equity Indicators
 # Last updated/deployed: 2021-03-13 mpc
 

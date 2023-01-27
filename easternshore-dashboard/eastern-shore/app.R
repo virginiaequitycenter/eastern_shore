@@ -1,3 +1,4 @@
+# Published version
 # VA Eastern Shore Atlas
 # Updated 1/26/2023
 # Last Deployed: 1/26/2023
@@ -37,6 +38,9 @@ ui <- dashboardPage(skin = "purple",
         # Dashboard Main Content
         dashboardBody(
           tags$head(tags$style(HTML('
+          body {
+              font-size: 15px;
+          }
           .skin-purple .main-header .navbar, .skin-purple .main-header .logo, .skin-purple .main-header .logo:hover  {
               background-color: #605ca8;
           }
@@ -157,7 +161,7 @@ ui <- dashboardPage(skin = "purple",
                          br(),
                          textOutput("source2")
                          ),
-                tabPanel(h4("Correlation"),
+                tabPanel(h4("Selection Relationship"),
                          h2(textOutput("comptitle")) %>% 
                            helper(type = "inline",
                                   title = "Distribution",
@@ -427,9 +431,13 @@ server <- function(input, output, session) {
               y=  ~get(input$indicator2),
               color = ~county.nice,
               type = "scatter", 
-              mode = "markers", 
+              mode = "markers",
+              marker = list(size = 10,
+                            # colors = ~county.nice,
+                            line = list(color = 'rgba(0, 0, 0, .4)',
+                                        width = 1)),
               # Changed to Set2 for more visible colors for 2 counties
-              colors = "Set2", 
+              colors = "Set2",
               text = paste0(
                             # d$county.nice, "<br>",
                             md()[["NAME"]], "<br>",

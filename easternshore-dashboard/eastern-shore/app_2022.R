@@ -1,4 +1,6 @@
-# Published version
+####################
+# Archived version #
+####################
 # Equity Indicators
 # Last updated/deployed: 2022-12-09 ll
 

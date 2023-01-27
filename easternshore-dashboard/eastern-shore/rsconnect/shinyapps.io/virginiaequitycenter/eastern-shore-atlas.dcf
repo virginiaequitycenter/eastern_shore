@@ -5,10 +5,10 @@ account: virginiaequitycenter
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 6591760
-bundleId: 6778387
+bundleId: 6781406
 url: https://virginiaequitycenter.shinyapps.io/eastern-shore-atlas/
-when: 1674765459.984
-lastSyncTime: 1674765459.98402
+when: 1674836849.39363
+lastSyncTime: 1674836849.39363
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: app_2021.R|app_2022.R|deploy.R|www/app_data.Rdata
+ignoredFiles: app_2021.R|app_2022.R|deploy.R|www/app_data.Rdata|www/bootstrap.css
