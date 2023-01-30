@@ -25,11 +25,9 @@ library(leaflet)
 # ....................................................
 # 2. Download data ----
 # define bounding box via county shape files
-ccode <- read_csv("datacode/county_codes.csv")
-ccode <- ccode[1:2,]
+ccode <- read_csv("data/county_codes.csv")
+ccode <- ccode[1:2]
 region <- ccode$code # list of desired counties
-# - 001 Accomack County  
-# - 131 Northampton County
 
 es_bounds <- tracts(state = 'VA', county = region, year = 2022) 
 
@@ -61,7 +59,7 @@ parks3_bounds <- st_intersection(st_make_valid(parks3), es_bounds)
 # for now, I filter based on the column names of the data frame with the 
 # fewest columns 
 parkvar1 <- intersect(names(parks1_bounds), names(parks2_bounds))
-parkvar2 <- names(parks3_bounds)[colnames(parks3_bounds) %in% parkvar1]
+parkvar2 <- names(parks3_bounds)[colnames(parks3_bounds) %in% parkvar1] 
 parkvars <- intersect(parkvar1, parkvar2)
 
 parks1_bounds <- parks1_bounds[,colnames(parks1_bounds) %in% parkvars]
@@ -98,18 +96,14 @@ historic <- parks[str_detect(parks$name, pattern = "Historic"),]
 
 leaflet(es_bounds) %>%
   addProviderTiles("CartoDB.Positron") %>%
-  # addPolygons(weight = 1, fill = 0, color = "black") %>% # there are no polygons in this set atm
   addCircles(data = st_collection_extract(historic, "POINT"), color = "blue",
-             popup = st_collection_extract(historic, "POINT")$name) 
-  # %>% # there are no polygons in this set atm
-  # addPolygons(data = st_collection_extract(historic, "POLYGON"), color = "orange",
-              # popup = st_collection_extract(historic, "POLYGON")$name)
+             popup = st_collection_extract(historic, "POINT")$name)
 
 ## None of these appear to capture any green space, except for "University of Virginia Historic District"
 # which really just includes the lawn. Other data sources we considered for the parks data 
 # also included the lawn; It could potentially be worth including in the future because certainly other people 
 # outside the UVA community access the lawn, but those often seem to be tourists. 
-# but for now, I'm excluding it along with the other historic districts.
+# but for now, I'm excluding it along with the other historic districts. 
 
 parks <- parks[parks$name %in% historic$name == F,]
 
@@ -121,6 +115,8 @@ parks <- parks[parks$name %in% historic$name == F,]
 parks <- parks[order(parks$name),]
 parks <- parks[!duplicated(parks$name),]
 
+
+# CB: Need to review historic parks in ES
 ### From previous run ###########################################################################
 # Polygon for Fry Spring's Park and point for Fry's Spring Beach Club (only keeping polygon)
 # Polygon for Northeast Park and a point for "Northeast Park Southbound" (only keeping polygon)

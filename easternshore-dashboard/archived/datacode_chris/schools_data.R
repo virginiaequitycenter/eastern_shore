@@ -8,7 +8,9 @@
 # From NCES 
 # * https://nces.ed.gov/programs/edge/Geographic/SchoolLocations
 #
-# Geography: Accomack, Northampton
+# Geography: Schools in VA's Eastern Shore
+#     Accomack County, VA
+#     Northampton County, VA
 ####################################################
 # 1. Load libraries
 # 2. Download data
@@ -27,12 +29,10 @@ library(sf)
 library(tigris)
 
 ccode <- read_csv("data/county_codes.csv")
-ccode <- ccode[1:2,]
+ccode <- ccode[1:2]
 region <- ccode$code # list of desired counties
-# - 001 Accomack County  
-# - 131 Northampton County
 
-options(timeout = max(1080, getOption("timeout")))
+options(timeout = max(1080, getOption("timeout"))) #what is this doing? 
 
 # ....................................................
 # 2. Download data ----
@@ -45,23 +45,22 @@ download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PUBLICS
 unzip(zipfile = "data/tempdata/public_schools.zip", exdir = "data/tempdata/public_schools")
 
 pubschools_sf = st_read(dsn = "data/tempdata/public_schools/EDGE_GEOCODE_PUBLICSCH_2122/Shapefiles_SCH/EDGE_GEOCODE_PUBLICSCH_2122.shp")
-# copied from console:
-# Geometry type: POINT
-# Dimension:     XY
-# Bounding box:  xmin: -176.6403 ymin: -14.34892 xmax: 145.7844 ymax: 71.30034
-# Geodetic CRS:  NAD83
+# geometry type:  POINT
+# dimension:      XY
+# epsg (SRID):    4269
+# proj4string:    +proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs
 
 # private schools -- updated private schools as of 07/20 are from 2019-2020 school year (no 2021/22 data available)
 download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PRIVATESCH_1920.zip",
               destfile = "data/tempdata/private_schools.zip")
 unzip(zipfile = "data/tempdata/private_schools.zip", exdir = "data/tempdata/private_schools")
 
-privschools_sf = st_read(dsn = "data/tempdata/private_schools/EDGE_GEOCODE_PRIVATESCH_1920.shp")
-# copied from console:
-# Geometry type: POINT
-# Dimension:     XY
-# Bounding box:  xmin: -159.713 ymin: 19.49081 xmax: -67.83857 ymax: 64.87414
-# Geodetic CRS:  WGS 84
+privschools_sf = st_read(dsn = "data/tempdata/private_schools/EDGE_GEOCODE_PRIVATESCH_1920.shp") #console says reading using 'ESRI shapefile'. Is that right?
+# geometry type:  POINT
+# dimension:      XY
+# epsg (SRID):    4269
+# proj4string:    +proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs
+
 
 # As of 07/20/22, the school boundaries are still from 2015-2016
 # get school attendance boundaries: https://nces.ed.gov/programs/edge/SABS
@@ -71,11 +70,11 @@ download.file(url, destfile="data/tempdata/SABS_1516.zip", method="libcurl")
 unzip("data/tempdata/SABS_1516.zip", exdir = "data/tempdata/sabs_1516")
 
 sabs_sf <- st_read("data/tempdata/sabs_1516/SABS_1516/SABS_1516.shp")
-# copied from console:
-# Geometry type: MULTIPOLYGON
-# Dimension:     XY
-# Bounding box:  xmin: -19951910 ymin: 2139103 xmax: 20021890 ymax: 11554790
-# Projected CRS: WGS 84 / Pseudo-Mercator
+# geometry type:  MULTIPOLYGON
+# dimension:      XY
+# epsg (SRID):    3857
+# proj4string:    +proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs
+
 
 # ....................................................
 # 3. Reduce data, add county FIPS ----
@@ -83,7 +82,7 @@ sabs_sf <- st_read("data/tempdata/sabs_1516/SABS_1516/SABS_1516.shp")
 pubschools_sf <- pubschools_sf %>% 
   filter(STATE == "VA") 
 
-# pubschools_sf$STATE <- droplevels(pubschools_sf$STATE)
+# pubschools_sf$STATE <- droplevels(pubschools_sf$STATE) what are these lines doing? 
 # pubschools_sf$CNTY <- droplevels(pubschools_sf$CNTY)
 
 pubschools_sf <- pubschools_sf %>% 
@@ -108,7 +107,7 @@ privschools_sf <- privschools_sf %>%
   select(id:LON, type, county, geometry)
 
 
-plot(pubschools_sf[,1])
+plot(pubschools_sf[,1]) #not sure what this is supposed to look like? 
 plot(privschools_sf[,1])
 
 # public school attendance boundaries
@@ -146,7 +145,7 @@ sabshigh_sf <- sabs_sf %>%
 # ....................................................
 # 4. Save as geojson ----
 st_write(schools_sf, "data/schools_sf.geojson", driver = "GeoJSON", delete_dsn = TRUE) 
-# st_crs(schools_sf)
+# st_crs(schools_sf) #does this line need to be ran at least once? 
 # schools_sf <- st_read("data/schools_sf.geojson") 
 st_write(sabselem_sf, "data/sabselem_sf.geojson", driver = "GeoJSON", delete_dsn = TRUE)
 st_write(sabshigh_sf, "data/sabshigh_sf.geojson", driver = "GeoJSON", delete_dsn = TRUE)

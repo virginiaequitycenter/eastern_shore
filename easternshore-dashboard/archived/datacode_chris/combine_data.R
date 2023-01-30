@@ -2,7 +2,7 @@
 # Eastern Shore Virginia Equity Atlas
 ####################################################
 # Combine data for shiny app
-# Last updated: 01/27/2023
+# Last updated: 01/25/2023
 ####################################################
 # 1. Load libraries 
 # 2. Load data
@@ -56,10 +56,10 @@ parks_sf <- st_read("data/parks_OSM_sf.geojson")
 schools_sf <- st_read("data/schools_sf.geojson") # may want to segment by type (public, private)
 sabselem_sf <- st_read("data/sabselem_sf.geojson")
 sabshigh_sf <- st_read("data/sabshigh_sf.geojson")
-mcd_sf <- st_read("data/mcd_sf.geojson") 
+mcd_sf <- st_read("data/mcd_sf.geojson") # as of 1/2022 (Alb not updated yet; others?)
 # other files as needed: polygons and points
 
-ccode <- read_csv("datacode/county_codes.csv")
+ccode <- read_csv("data/county_codes.csv")
 ccode <- ccode[1:2,]
 ccode <- ccode %>% mutate(
   code = as.character(code),
@@ -67,22 +67,21 @@ ccode <- ccode %>% mutate(
   )
 region <- ccode$code # list of desired counties
 
+# CB: No ES tract names so going to comment this section out for time being
 # Tract names 
-# Currently using tract name data from /tracts
-tractnames <- readRDS("data/tractnames.RDS")
-tractnames <- tractnames %>%
-  select(c("TRACTCE", "locality", "GEOID", "names")) %>%
-  st_drop_geometry() %>%
-  rename(tract = TRACTCE, count = locality, tractnames = names)
-tractnames$GEOID <- as.character(tractnames$GEOID)
-
+# gs_auth(new_user = TRUE)
+# googlesheets4::gs4_deauth()
+# tractname_sheet <- "https://docs.google.com/spreadsheets/d/19wl75rrOBjEqiQKMB38RSz3G9bGHxXbNUUK3x1iWfKk/edit#gid=0"
+# tractnames <- googlesheets4::read_sheet(tractname_sheet, sheet = "Sheet1") 
+# tractnames <- tractnames %>%
+#  rename(count = locality)
+# tractnames$GEOID <- as.character(tractnames$GEOID)
+# we only have tract names for the six-locality planning district;
+# for other surrounding counties we can leave blank, try to derive names, or choose to remove them
 
 # variable metadata/attributes
 # pretty table contains better variable lables, sources, and descriptions
-# gs_auth(new_user = TRUE)
-# googlesheets4::gs4_deauth()
-
-url_sheet <- "https://docs.google.com/spreadsheets/d/1Fi1sHsWcYOYKL7lzgySxzlz0WqGxGwMGGoYKiYAZtTs/edit?usp=sharing"
+url_sheet <- "https://docs.google.com/spreadsheets/d/1hwR-U4ykkT4s-ZGaBXhBOaCt78ull4DT2kH51d-7Phg/edit?usp=sharing"
 pretty <- googlesheets4::read_sheet(url_sheet, sheet = "acs_tract")
 pretty$goodname <- toTitleCase(pretty$description)
 
@@ -102,20 +101,11 @@ tract_data <- tract_data %>%
   left_join(seg_tract, by = c("locality" = "county", "tract" = "tract")) %>% 
   select(move_last(., c("state", "locality", "tract")))
 
+# CB: Commenting this out as well till we have ES tract names
 # add tract names 
-tract_data <- tract_data %>%
-left_join(tractnames, by = c("GEOID" = "GEOID", "tract" = "tract")) %>%
-  select(move_last(., c("state", "locality", "tract")))
-
-# add tract names to block group (temporary solution without block group names)
-blkgrp_data <- blkgrp_data %>% 
-  left_join(tractnames, by = "tract") %>% 
-  select(move_last(., c("state", "locality", "tract")))
-
-# rm GEOID.y and rename GEOID.x
-blkgrp_data <- blkgrp_data %>% 
-  select(-GEOID.y) %>% 
-  rename(GEOID = GEOID.x)
+# tract_data <- tract_data %>% 
+# left_join(tractnames, by = "GEOID") %>% 
+#   select(move_last(., c("state", "locality", "tract"))) 
 
 # b. Merge county data ----
 
@@ -127,7 +117,7 @@ county_data <- county_data %>%
 
 # add segregation measures by county
 county_data <- county_data %>% 
-  left_join(seg_county, by = c("locality" = "county", "year" = "year")) %>% 
+  left_join(seg_county, by = c("locality" = "county")) %>% 
   select(move_last(., c("state", "locality")))
 
 # Generate HDI measure for County
@@ -178,14 +168,14 @@ blkgrp_data <- left_join(blkgrp_data, tab3, by=c("locality"))
 # ....................................................
 # 5. Add geography  ----
 # get tract polygons
-geo <- tracts(state = 'VA', county = region, year = 2021, cb = TRUE) %>% # from tigris / used 2021 bc 2022 caused error
+geo <- tracts(state = 'VA', county = region, year = 2022) %>% # from tigris
   rename(tr = NAME)
 
 # join coordinates to data
 tract_data_geo <- merge(geo, tract_data, by = c("GEOID"), duplicateGeoms = TRUE) # from sp -- keep all obs (full_join)
 
 # get locality polygons
-counties_geo <- counties(state = 'VA', year = 2021, cb = TRUE) # from tigris / used 2021 bc 2022 caused error
+counties_geo <- counties(state = 'VA', year = 2022) # from tigris
 counties_geo <- counties_geo %>% subset(COUNTYFP %in% region)
 
 # join coordinates to data
@@ -193,11 +183,11 @@ county_data_geo <- merge(counties_geo, county_data, by = "GEOID", duplicateGeoms
 names(county_data_geo)[names(county_data_geo)=="NAME.y"] <- "NAME"
 
 # get block group polygons
-blkgrp_geo <- block_groups(state = 'VA', county = region, year = 2021, cb = TRUE) # from tigris / used 2021 bc 2022 caused error
+blkgrp_geo <- block_groups(state = 'VA', county = region, year = 2022) # from tigris
 
 # join coordinates to data
 blkgrp_data_geo <- merge(blkgrp_geo, blkgrp_data, by = "GEOID", duplicateGeoms = TRUE) # from sp -- keep all obs (full_join)
-names(blkgrp_data_geo)[names(blkgrp_data_geo)=="NAME.y"] <- "NAME"
+
 
 # ....................................................
 # 6. Create attributes (CF Edits) ----
@@ -207,9 +197,6 @@ all_data <- bind_rows("County" = county_data_geo,
                       "Block Group" = blkgrp_data_geo, 
                       "Census Tract" = tract_data_geo, 
                       .id = "GEO_LEVEL")
-
-# filter out tract 9901
-all_data <- all_data %>% filter(ALAND > 0)
 
 # fix 3 var names (fixed in googlesheet)
 j <- match(pretty2$varname, names(all_data))
@@ -270,7 +257,7 @@ ind_choices_ct <- split(group_df, group_df$group) %>%
 counties <- levels(factor(tract_data_geo$county.nice))
 
 # get helpers
-source('datacode/helpers.R')
+source('helpers.R')
 
 
 # ....................................................
@@ -286,12 +273,12 @@ save(counties_geo, counties, all_data, mycolors,
      parks_sf, schools_sf, sabselem_sf, mcd_sf, group_df,
      ind_choices_county, ind_choices_bg, ind_choices_ct,
      helpers,
-     file = "data/app_data_2022.Rdata")
+     file = "data/esapp_data_2022.Rdata")
 # load("data/app_data_2022.Rdata")
 
-save(counties_geo, counties, all_data, mycolors, 
+save(counties_geo, counties, all_data, mycolors, #only line that won't work for me - CB
      parks_sf, schools_sf, sabselem_sf, mcd_sf, group_df,
      ind_choices_county, ind_choices_bg, ind_choices_ct,
      helpers,
-     file = "eastern-shore/www/app_data_2022.Rdata")
+     file = "eastern_shore/www/app_data_2022.Rdata")
 

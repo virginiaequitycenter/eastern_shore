@@ -4,7 +4,7 @@
 # Acquire ACS data
 # Original script written by Lee LeBoeuf
 # adapted for Eastern Shore by Chris Barber
-# Last updated: 01/27/2023
+# Last updated: 1/19/2023
   # Updates include: pulling 2021 ACS data and adding a few more variables 
 # Metrics from ACS (in common with locality level): 
 # * Total population
@@ -86,11 +86,12 @@ library(tidycensus)
 # 2. Define localities, variables, pull data ----
 
 # List of desired localities by FIPS
-ccode <- read_csv("datacode/county_codes.csv")
-ccode <- ccode[1:2,]
-region <- ccode$code # list of desired counties
-# - 001 Accomack County  
-# - 131 Northampton County
+es_code <- read_csv("data/county_codes.csv")
+es_code <- es_code[1:2,] 
+region <- es_code$code # list of desired counties
+# - 003 Accomack County  
+# - 095 Northampton County
+
 
 # Get Data
 # variables: define varlist

@@ -4,8 +4,8 @@
 # Original scripts written by Lee LeBoeuf
 # adapted for Eastern Shore by Chris Barber
 # Acquire ACS data
-# Last updated: 01/27/2023
-# Updates include: pulling 2021 ACS data and adding a few more variables 
+# Last updated: 01/18/2023
+  # Updates include: pulling 2021 ACS data and adding a few more variables 
 # Metrics from ACS (in common with locality level): 
 # * Total population
 # * Poverty, child poverty 
@@ -86,8 +86,8 @@ library(tidycensus)
 # 2. Define localities, variables, pull tables ----
 
 # List of desired localities by FIPS
-ccode <- read_csv("datacode/county_codes.csv")
-ccode <- ccode[1:2,]
+ccode <- read_csv("data/county_codes.csv")
+ccode <- ccode[1:2]
 region <- ccode$code # list of desired counties
 # - 001 Accomack County  
 # - 131 Northampton County
@@ -137,7 +137,7 @@ names(blkgrp_data_b) = c("GEOID", "NAME",
 # Derive some variables
 blkgrp_data_b <- blkgrp_data_b %>% 
   mutate(rentersumE = (rent30E+rent35E+rent40E+rent50E),
-         rentersumM = (rent30M/1.645)^2 + (rent35M/1.645)^2 + (rent40M/1.645)^2 + (rent50M/1.645)^2,
+         rentersumM = (rent30M/1.645)^2 + (rent35M/1.645)^2 + (rent40M/1.645)^2 + (rent50M/1.645)^2, #why 1.645? 
          rentersumM = sqrt(rentersumM)*1.645,
          renter30E = round((rentersumE/rentallE)*100,1),
          renter30M = moe_prop(rentersumE, rentallE, rentersumM, rentallM),
@@ -206,7 +206,7 @@ blkgrp_age <- get_acs(geography = "block group",
 # Derive from tables
 # blkgrp_educ for blkgrp_hs, blkgrp_ba, blkgrp_grad
 blkgrp_25over <- blkgrp_educ %>% 
-  filter(variable == "B15003_001") %>% select(-variable)
+  filter(variable == "B15003_001") %>% select(-variable) 
 
 blkgrp_hs <- blkgrp_educ %>% 
   filter(variable %in% c("B15003_017", "B15003_018", "B15003_019",

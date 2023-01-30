@@ -24,11 +24,9 @@
 library(tidyverse)
 library(tidycensus)
 
-ccode <- read_csv("datacode/county_codes.csv")
-ccode <- ccode[1:2,]  
+ccode <- read_csv("data/county_codes.csv")
+ccode <- ccode[1:2] # just brhd/tjpd
 region <-ccode$code # list of desired counties
-# - 001 Accomack County  
-# - 131 Northampton County
 
 # ....................................................
 # 2. Segregation measures ----
@@ -144,7 +142,7 @@ summary(seg_tract)
 pairs(seg_tract[3:8])
 
 # d. save ----
-saveRDS(seg_tract, file = "data/seg_tract.RDS")
+saveRDS(seg_tract, file = "seg_tract.RDS")
 
 
 # # ....................................................

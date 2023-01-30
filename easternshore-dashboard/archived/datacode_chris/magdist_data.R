@@ -24,11 +24,10 @@ library(sf)
 library(tigris)
 
 
-ccode <- read_csv("datacode/county_codes.csv")
-ccode <- ccode[1:2,]
+ccode <- read_csv("data/county_codes.csv")
+ccode <- ccode[1:2]
 region <- ccode$code # list of desired counties
-# - 001 Accomack County  
-# - 131 Northampton County
+
 
 # ....................................................
 # 2. Download data ----
@@ -36,8 +35,7 @@ region <- ccode$code # list of desired counties
 # pull county subdivisions and reduce to region
 mcd <- county_subdivisions(state = "VA", 
                            county = region, 
-                           year = "2021", # doesnt work with 2022 yet with cb = TRUE
-                           cb = TRUE)
+                           year = "2022")
 # will need to change back to county = region
 # MPC: as of 1/10/2023, only 2022 tiger files are available,
 #.  representing boundaries as of 1/1/2022;

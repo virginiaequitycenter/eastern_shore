@@ -4,13 +4,13 @@
 # Original script written by Lee LeBoeuf
 # adapted for Eastern Shore by Chris Barber
 # Acquire Additional County-Level data
-# Last updated: 01/20/2023
+# Last updated: 01/19/2023
 # Metrics from various sources: 
 # * Life Expectancy Estimates: https://www.countyhealthrankings.org/explore-health-rankings/virginia/data-and-resources
 # * Segregation measures (from ACS data, but with more derivation)
 #
 # Geography: Accomack County, VA
-#            Northampton County, VA
+#             Northampton County, VA
 ####################################################
 # 1. Load libraries
 # 3. Segregation measures
@@ -26,17 +26,16 @@ library(tidycensus)
 library(sf)
 library(readxl)
 
-ccode <- read_csv("datacode/county_codes.csv")
+ccode <- read_csv("data/county_codes.csv")
 ccode <- ccode[1:2,]
 region <- ccode$code # list of desired counties
-# - 001 Accomack County  
-# - 131 Northampton County
+
 
 # ....................................................
 # 2. Small-area life expectancy estimates ----
 # a. acquire ----
-if (!dir.exists("data/tempdata")){
-  dir.create("data/tempdata")}
+if (!dir.exists("tempdata")){
+  dir.create("tempdata")}
 
 # https://www.countyhealthrankings.org/app/virginia/2022/downloads
 # url <- "https://www.countyhealthrankings.org/sites/default/files/media/document/state/downloads/2019%20County%20Health%20Rankings%20Virginia%20Data%20-%20v1_0.xls" # 2019
@@ -190,7 +189,7 @@ seg_county <- seg_county %>%
 
 # check
 summary(seg_county)
-pairs(seg_county[2:7])
+pairs(seg_county[2:7]) #not sure if this is working correctly for ES
 
 # d. save ----
 saveRDS(seg_county, file = "data/seg_county.RDS")
