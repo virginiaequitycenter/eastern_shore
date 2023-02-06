@@ -31,9 +31,9 @@ region <- str_pad(as.character(ccode$code), width = 3, pad = "0") # list of desi
 # ....................................................
 # 2. Download data ----
 # public schools
-download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PUBLICSCH_1718.zip",
-              destfile = "tempdata/public_schools.zip")
-unzip(zipfile = "tempdata/public_schools.zip", exdir = "tempdata/public_schools")
+# download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PUBLICSCH_1718.zip",
+#               destfile = "tempdata/public_schools.zip")
+# unzip(zipfile = "tempdata/public_schools.zip", exdir = "tempdata/public_schools")
 pubschools_sf = st_read(dsn = "tempdata/public_schools/EDGE_GEOCODE_PUBLICSCH_1718/EDGE_GEOCODE_PUBLICSCH_1718.shp")
 # geometry type:  POINT
 # dimension:      XY
@@ -41,9 +41,9 @@ pubschools_sf = st_read(dsn = "tempdata/public_schools/EDGE_GEOCODE_PUBLICSCH_17
 # proj4string:    +proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs
 
 # private schools
-download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PRIVATESCH_17_18.zip",
-              destfile = "tempdata/private_schools.zip")
-unzip(zipfile = "tempdata/private_schools.zip", exdir = "tempdata/private_schools")
+# download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PRIVATESCH_17_18.zip",
+#               destfile = "tempdata/private_schools.zip")
+# unzip(zipfile = "tempdata/private_schools.zip", exdir = "tempdata/private_schools")
 privschools_sf = st_read(dsn = "tempdata/private_schools/EDGE_GEOCODE_PRIVATESCH_17_18/EDGE_GEOCODE_PRIVATESCH_1718.shp")
 # geometry type:  POINT
 # dimension:      XY
@@ -53,9 +53,9 @@ privschools_sf = st_read(dsn = "tempdata/private_schools/EDGE_GEOCODE_PRIVATESCH
 
 # get school attendance boundaries: https://nces.ed.gov/programs/edge/SABS
 # Details: https://nces.ed.gov/pubs2015/2015118.pdf
-url <- "https://nces.ed.gov/programs/edge/data/SABS_1516.zip"
-download.file(url, destfile="tempdata/SABS_1516.zip", method="libcurl")
-unzip("tempdata/SABS_1516.zip", exdir = "tempdata/sabs_1516")
+# url <- "https://nces.ed.gov/programs/edge/data/SABS_1516.zip"
+# download.file(url, destfile="tempdata/SABS_1516.zip", method="libcurl")
+# unzip("tempdata/SABS_1516.zip", exdir = "tempdata/sabs_1516")
 
 sabs_sf <- st_read("tempdata/sabs_1516/SABS_1516/SABS_1516.shp")
 # geometry type:  MULTIPOLYGON
@@ -135,4 +135,4 @@ st_write(schools_sf, "data/schools_sf.geojson", driver = "GeoJSON", delete_dsn =
 st_write(sabselem_sf, "data/sabselem_sf.geojson", driver = "GeoJSON", delete_dsn = TRUE)
 st_write(sabshigh_sf, "data/sabshigh_sf.geojson", driver = "GeoJSON", delete_dsn = TRUE)
 
-
+schools <- st_read("data/schools_sf.geojson")
