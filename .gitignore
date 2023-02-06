@@ -1,4 +1,17 @@
-.Rproj.user
+# ignore supplementary folders
+data/
+dev/
+tempdata/
+dataraw/
+
+# ignore data files - rm *.RData when updating app data
+*.gz
+*.RDS
+*.geojson
+*.RData 
+data.zip
+
+# ignore project files
+.DS_Store
 .Rhistory
-.RData
-.Ruserdata
+.Rproj.user/

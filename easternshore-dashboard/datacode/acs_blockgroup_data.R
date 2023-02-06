@@ -1,8 +1,11 @@
 ####################################################
-# Eastern Shore Profile
+# Eastern Shore Virginia Equity Atlas               
 ####################################################
+# Original scripts written by Lee LeBoeuf
+# adapted for Eastern Shore by Chris Barber
 # Acquire ACS data
-# Last updated: 03/01/2021
+# Last updated: 01/27/2023
+# Updates include: pulling 2021 ACS data and adding a few more variables 
 # Metrics from ACS (in common with locality level): 
 # * Total population
 # * Poverty, child poverty 
@@ -15,8 +18,10 @@
 # * Median personal earnings
 # * Net school enrollment
 #
-# Based on: ACS 2015-2019 
-# Geography: Accomack, Northhampton
+# Based on: ACS 2017-2021 
+# Geography: Block groups in Localities in VA's Eastern Shore:
+#     Accomack County, VA
+#     Northampton County, VA
 ####################################################
 # 1. Load libraries, provide api key (if needed), identify variables
 # 2. Define variables, pull data
@@ -39,10 +44,10 @@ library(tidycensus)
 # census_api_key("", install = TRUE, overwrite = TRUE) # add key
 
 # Variable view helper
-# acs_var <- load_variables(2017, "acs5", cache = TRUE)
-# acs_var <- load_variables(2017, "acs5/subject", cache = TRUE)
-# acs_var <- load_variables(2017, "acs5/profile", cache = TRUE)
-# dec_var <- load_variables(2010, "sf1", cache = TRUE)
+# acs_var <- load_variables(2021, "acs5", cache = TRUE)
+# acs_var <- load_variables(2021, "acs5/subject", cache = TRUE)
+# acs_var <- load_variables(2021, "acs5/profile", cache = TRUE)
+# dec_var <- load_variables(2021, "sf1", cache = TRUE)
 
 # Variable of interest -
 ##  - Total population -- B01003_001
@@ -59,39 +64,33 @@ library(tidycensus)
 ##  - Percent Two or more races -- B03002
 ##  - Percent Hispanic or Latino -- B03002
 ##  - Percent unemployment (Population 16 and over) -- B23025
-##  - Percent with health insurance (Civilian noninstitutionalized population) -- B27010
-##  - Percent with public health insurance (Civilian noninstitutionalized population) -- B27010
+##  - Percent with health insurance (Civilian non-institutionalized population) -- B27010
+##  - Percent with public health insurance (Civilian non-institutionalized population) -- B27010
 ##  - Age, population under 18 -- B01001
 ##  - Age, population 18 to 24 -- B01001	
 ##  - Age, 26 to 64 -- B01001
 ##  - Age, 65 and over -- B01001
 ##  - Median personal earnings of all workers with earnings ages 16 and older -- B20002
 ##  - Percent of cost-burdened renters -- B25070_007+B25070_008+B25070_009+B25070_010/B25070_001
-##  - Housing vacant unitss -- B25002_003/B25002_001
+##  - Housing vacant units -- B25002_003/B25002_001
 ##  - Home ownership rates -- B25003_002/B25003_002
+##  - Percent of households who receive cash public assistance/SNAP benefits -- B19058_002
 
-##  - Poverty rate -- NOT AVAILABLE
-##  - Child poverty rate -- NOT AVAILABLE
-##  - Gini Index of Income Inequality -- NOT AVAILABLE
-##  - School enrollment for the population age 3 to 24 -- NOT AVAILABLE
-
-
+## Currently unavailable but may be of interest in the future:
+# B17020_001 - Poverty status in the last 12 months by age
+# B19083_001 - Gini Index of Income Inequality
+# B14001_001 - School enrollment for the population 3 years and over
+# B05002_013 - Number of foreign-born residents (only see this at the tract level)
 
 # ....................................................
 # 2. Define localities, variables, pull tables ----
 
 # List of desired localities by FIPS
 ccode <- read_csv("datacode/county_codes.csv")
-ccode <- ccode %>% mutate(
-  code = as.character(code),
-  code = str_pad(code, width=3, side="left", pad = "0")
-)
+ccode <- ccode[1:2,]
 region <- ccode$code # list of desired counties
-# - 001 Accomakc County  
+# - 001 Accomack County  
 # - 131 Northampton County
-
-# region <- str_pad(as.character(ccode$code), width = 3, pad = "0") # list of desired counties
-
 
 # Get Data
 # variables: define varlist
@@ -106,7 +105,8 @@ varlist_b = c("B01003_001",  # totalpop
               "B25003_002",  # owner-occupied housing units
               "B25003_001",  # occupied housing units
               "B25002_003",  # vacant housing units
-              "B25002_001")  # housing units
+              "B25002_001",  # housing units
+              "B19058_002")  # SNAP Recipients
 
 
 # Pull variables
@@ -115,7 +115,7 @@ blkgrp_data_b <- get_acs(geography = "block group",
                          state = "VA", 
                          county = region, 
                          survey = "acs5",
-                         year = 2019, 
+                         year = 2021, 
                          output = "wide")
 
 # rename variables
@@ -131,7 +131,8 @@ names(blkgrp_data_b) = c("GEOID", "NAME",
                          "ownoccE", "ownoccM",
                          "occhseE", "occhseM",
                          "vachseE", "vachseM",
-                         "allhseE", "allhseM")
+                         "allhseE", "allhseM",
+                         "snapE", "snapM")
                          
 # Derive some variables
 blkgrp_data_b <- blkgrp_data_b %>% 
@@ -149,6 +150,12 @@ blkgrp_data_b <- blkgrp_data_b %>%
          vacrateM = round(vacrateM*100, 1)) %>% 
   select(-c(rentersumE, rentersumM,rent30E:occhseM))
 
+# derive snap variables 
+blkgrp_data_b <- blkgrp_data_b %>% 
+  mutate(perc_snaphseE = round((snapE / allhseE)*100,1),
+         perc_snaphseM = round(moe_prop(snapE, allhseE, snapM, allhseM), 2),
+         .keep = "all")
+
 
 # Get Data
 # pull tables (easier to just pull tables separately)
@@ -159,7 +166,7 @@ blkgrp_educ <- get_acs(geography = "block group",
           state = "VA", 
           county = region, 
           survey = "acs5",
-          year = 2019)
+          year = 2021)
 
 # for race
 blkgrp_race <- get_acs(geography = "block group", 
@@ -167,7 +174,7 @@ blkgrp_race <- get_acs(geography = "block group",
           state = "VA", 
           county = region, 
           survey = "acs5",
-          year = 2019)
+          year = 2021)
 
 # for blkgrp_unemp
 blkgrp_emp <- get_acs(geography = "block group", 
@@ -175,7 +182,7 @@ blkgrp_emp <- get_acs(geography = "block group",
           state = "VA", 
           county = region, 
           survey = "acs5",
-          year = 2019)
+          year = 2021)
 
 # for blkgrp_hlthins, blkgrp_pubins
 blkgrp_insur <- get_acs(geography = "block group", 
@@ -183,7 +190,7 @@ blkgrp_insur <- get_acs(geography = "block group",
           state = "VA", 
           county = region, 
           survey = "acs5",
-          year = 2019)
+          year = 2021)
 
 # for age
 blkgrp_age <- get_acs(geography = "block group", 
@@ -191,8 +198,7 @@ blkgrp_age <- get_acs(geography = "block group",
           state = "VA", 
           county = region, 
           survey = "acs5",
-          year = 2019)
-
+          year = 2021)
 
 # ....................................................
 # 3. Reduce and Combine data ----
@@ -280,9 +286,9 @@ blkgrp_asian  <- blkgrp_race %>%
 
 blkgrp_othrace  <- blkgrp_race %>% 
   filter(variable %in% c("B03002_007", "B03002_008")) %>% 
-  group_by(GEOID, NAME) %>% 
-  summarize(otE = sum(estimate),
-            otM = moe_sum(moe = moe, estimate = estimate)) %>% 
+  rename(otE = estimate,
+         otM = moe) %>% 
+  select(-variable) %>% 
   left_join(blkgrp_tot) %>% 
   mutate(othraceE = round((otE/estimate)*100, 2),
          othraceM = round((moe_prop(otE, estimate, otM, moe))*100, 2)) %>% 
@@ -419,8 +425,9 @@ blkgrp_data <- blkgrp_data_b %>%
   left_join(blkgrp_age65) 
 
 blkgrp_data <- blkgrp_data %>% 
-  mutate(year = "2019") %>% 
-  select(GEOID, NAME, year, totalpopE, totalpopM, whiteE, whiteM, blackE, blackM, asianE, asianM, indigE, indigM, othraceE, othraceM, multiE, multiM, ltnxE, ltnxM, everything())
+  mutate(year = "2021") %>% 
+  select(GEOID, NAME, year, totalpopE, totalpopM, whiteE, whiteM, blackE, blackM, asianE, asianM, 
+         indigE, indigM, othraceE, othraceM, multiE, multiM, ltnxE, ltnxM, snapE, snapM, everything())
 
 blkgrp_data <- blkgrp_data %>% 
   mutate(geoid = GEOID) %>% 
@@ -435,4 +442,3 @@ blkgrp_data %>% select_at(vars(ends_with("E"))) %>% summary()
 # ....................................................
 # 5. Save ----
 saveRDS(blkgrp_data, file = "data/blkgrp_data.RDS") 
-# blkgrp_data <- readRDS("data/blkgrp_data.RDS")
