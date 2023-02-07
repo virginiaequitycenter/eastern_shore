@@ -38,17 +38,17 @@ or
 git pull origin main
 ```
 
-Origin is the name of the remote repository. Main is the name of the branch we are pulling from. Unless you're created a branch that is not tracking an upstream branch, you can just use `git pull` 
+Origin is the name of the remote repository. Main is the name of the branch we are pulling from. Unless you've created a branch that is not tracking an upstream branch, you can just use `git pull` 
 
 ## Push Local Changes to the Remote Repo
 
-After you've made changes to files in your local repo, push those changes to the remote repo on Github. This is the process I use:
+After you've made changes to files in your local repo, push those changes to the remote on Github. This is the process I use:
 
 1. Check the status of files in your local repo:
     ```
     git status
     ```
-    This will generate a list of files that have been modified and/or added since you last pulled changes from the remote repo. Files listed in red are not yet staged for commit. Files listed in green are already staged for commit. Read through the list of files to identify which you want to push to the repo.
+    This will generate a list of files that have been modified and/or added since you last pulled changes from the remote repo. Files listed in red are not yet staged for commit. Files listed in green are already staged for commit. Read through the list of files to identify which you want to push to Github.
 2. Add files to the staging area:
 
     If you want to add all of the files listed in red above, use:
@@ -67,7 +67,7 @@ After you've made changes to files in your local repo, push those changes to the
     ```
     git reset 'your-file-name-here'
     ```
-3. Check files staged for commit. I use this to double check that everything I want added has beed added to the stagin area:
+3. Check files staged for commit. I use this to double check that everything I want to add has been added to the staging area:
     ```
     git status
     ```
@@ -117,7 +117,7 @@ After you've made changes to files in your local repo, push those changes to the
 
     <img src="images/git-test.png" width="400">
 
-4. Set Config Values. Your user name and email will be the same as what you used to set up your github account.
+4. Set Config Values. Your user name and email will be the same as what you used to set up your Github account.
 
     Type and enter:
     ```
