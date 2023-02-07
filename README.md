@@ -17,23 +17,26 @@ Forget your command line basics? [See reminders here.](#practice-with-command-li
     <img src="images/git-clone.png" width="300">
 
 3. In the command line, [change your working directory](#change-directory) to the location where you want to save this repository locally and use the `git clone` command. Type and enter:
-
-    `git clone <copied url>`
+    ```
+    git clone <copied url>
+    ```
 
     For the Eastern Shore Repo, it looks like this:
-
-    `git clone https://github.com/virginiaequitycenter/eastern_shore.git`
+    ```
+    git clone https://github.com/virginiaequitycenter/eastern_shore.git
+    ```
 4. Check your file system to see the files and begin working with your local repo. 
 
 ## Pull Changes from the Remote Repo
 
 Now that you have a local version of the repo, you'll want to pull any changes that other users have made to the remote repository (Github). Use the command:
-
-`git pull origin` 
-
+```
+git pull origin
+``` 
 or 
-
-`git pull origin main`
+```
+git pull origin main
+```
 
 Origin is the name of the remote repository. Main is the name of the branch we are pulling from. Unless you're created a branch that is not tracking an upstream branch, you can just use `git pull` 
 
@@ -42,45 +45,45 @@ Origin is the name of the remote repository. Main is the name of the branch we a
 After you've made changes to files in your local repo, push those changes to the remote repo on Github. This is the process I use:
 
 1. Check the status of files in your local repo:
-
-    `git status`
-
+    ```
+    git status
+    ```
     This will generate a list of files that have been modified and/or added since you last pulled changes from the remote repo. Files listed in red are not yet staged for commit. Files listed in green are already staged for commit. Read through the list of files to identify which you want to push to the repo.
 2. Add files to the staging area:
 
     If you want to add all of the files listed in red above, use:
-
-    `git add -A`
-
+    ```
+    git add -A
+    ```
     If you want to add only select files, add each individually:
-
-    `git add your-file-name-here`
-
+    ```
+    git add your-file-name-here
+    ```
     Example: 
-
-    `git add easternshore-dashboard/datacode/school_data.R`
-
+    ```
+    git add easternshore-dashboard/datacode/school_data.R
+    ```
     If you made a mistake, you can remove it from the staging area:
-
-    `git reset 'your-file-name-here'`
-
+    ```
+    git reset 'your-file-name-here'
+    ```
 3. Check files staged for commit. I use this to double check that everything I want added has beed added to the stagin area:
-
-    `git status`
-
+    ```
+    git status
+    ```
     (yes, its just `git status` again, use this as frequently as needed)
 4. If everything you want to be green is green, we're ready to commit. Be sure to add a descriptive message about the commit (what you're adding, what you updated), like:
-
-    `git commit -m "updated app styling"`
-
+    ```
+    git commit -m "updated app styling"
+    ```
 5. If you haven't pulled changes from the remote repo's main branch yet, now's the time to do it:
-
-    `git pull origin main`
-
+    ```
+    git pull origin main
+    ```
 6. Now push changes to the remote repository:
-
-    `git push origin main`
-
+    ```
+    git push origin main
+    ```
 7. Check Github to see your changes. 
 
 ## First time steps
@@ -107,9 +110,9 @@ After you've made changes to files in your local repo, push those changes to the
                 <img src="images/git-bash.png" width="400">
 
 3. Check your git version to makes sure it is installed. Open your command line tool (Terminal for Mac/ Git Bash for Windows) and type or copy/paste the following, then press enter:
-
-    `git --version`
-
+    ```
+    git --version
+    ```
     You should see a response that says something like `git version 2.37.1` (version number is not important):
 
     <img src="images/git-test.png" width="400">
@@ -117,17 +120,17 @@ After you've made changes to files in your local repo, push those changes to the
 4. Set Config Values. Your user name and email will be the same as what you used to set up your github account.
 
     Type and enter:
-
-    `git config --global user.name "Your User Name"`
-
+    ```
+    git config --global user.name "Your User Name"
+    ```
     Type and enter:
-
-    `git config --global user.email "Your Email"`
-
+    ```
+    git config --global user.email "Your Email"
+    ```
     Check:
-
-    `git config --list`
-
+    ```
+    git config --list
+    ```
 ## Practice with command line
 
 ### Command Line Basics: Terminal (Mac) and Git Bash (Windows)
@@ -154,20 +157,20 @@ We’re going to do some very quick practice to get comfortable with the command
 
 ### Navigating your file system 
 
-The command line allows you to navigate your files in the same way you use Finder (Mac) or File Explorer (Windows) to find files and folders.
+The command line allows you to navigate your system in the same way you use Finder (Mac) or File Explorer (Windows) to find files and folders.
 
 #### **Change Directory**
 
 A directory is another word for a folder in your file system. In the same way that you need to open the correct folder to access the a particular file, you need to navigate into the right directory using the command line.
 
 Use the `cd` command to navigate to a file or folder:
-
-`cd <directory name>`
-
+```
+cd <directory name>
+```
 From the home directory, I can navigate to my Desktop with:
-
-`cd Desktop`
-
+```
+cd Desktop
+```
 <img src="images/cd-desktop.png" width="500">
 
 You’ll notice that your shell prompt will update to include the name of your current directory/folder (`Desktop %`).
@@ -186,26 +189,26 @@ Notes:
 <img src="images/cd-drag-2.png" width="500">
 
 To navigate back, from the current directory into its parent directory, use the command `cd`, followed by a space and two periods:
-
-`cd ..`
-
+```
+cd ..
+```
 <img src="images/cd-back-command.png" width="550">
 
 
 #### **Print Working Directory**
 
 To see where you are in the file structure, type and enter `pwd` (print working directory) into the command line. It will print the path to your current directory:
-
-`pwd`
-
+```
+pwd
+```
 <img src="images/pwd.png" width="550">
 
 #### **List Files and Folders**
 
 To see the list of files and folders within your current directory, use the `ls` (list files) command:
-
-`ls`
-
+```
+ls
+```
 <img src="images/ls-command.png" width="550">
 
 
