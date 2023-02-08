@@ -91,20 +91,20 @@ After you've made changes to files in your local repo, push those changes to the
 1. Create a Github account: https://github.com/
 
 2. Find your preferred command line tool.
-    * **For Mac users:** 
+    - **For Mac users:** 
         - Git is usually installed by default (we'll check in Step 3)
         - Open the Terminal (can be found in the Utilities Folder in Applications)
-            - Icon looks like this: <img src="images/terminal-icon.png" height="20">
+            - Icon looks like this: <img src="images/terminal-icon.png" height="30">
             - Open application looks similar to this: 
             
                 <img src="images/terminal-view.png" width="400">
 
-    * **For Windows users:** 
+    - **For Windows users:** 
         - Install Git:
-            * Follow installation instructions here: https://www.youtube.com/watch?v=albr1o7Z1nw (watch first 2:45)
-            * Links for Git download (in video above): https://git-scm.com/ or https://gitforwindows.org/
+            - Follow installation instructions here: https://www.youtube.com/watch?v=albr1o7Z1nw (watch first 2:45)
+            - Links for Git download (in video above): https://git-scm.com/ or https://gitforwindows.org/
         - Open Git Bash
-            - Icon looks like this: <img src="images/git-bash-icon.png" height="20">
+            - Icon looks like this: <img src="images/git-bash-icon.png" height="30">
             - Open program looks similar to this:
 
                 <img src="images/git-bash.png" width="400">
@@ -161,9 +161,9 @@ The command line allows you to navigate your system in the same way you use Find
 
 #### **Change Directory**
 
-A directory is another word for a folder in your file system. In the same way that you need to open the correct folder to access the a particular file, you need to navigate into the right directory using the command line.
+A directory is another word for a folder in your file system. In the same way that you need to open the correct folder to access a particular file, you need to navigate into the right directory using the command line.
 
-Use the `cd` command to navigate to a file or folder:
+Use the `cd` (change directory) command to navigate to a file or folder:
 ```
 cd <directory name>
 ```
