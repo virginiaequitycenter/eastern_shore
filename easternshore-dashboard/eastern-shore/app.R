@@ -132,10 +132,10 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                                   ),
                                 tabPanel("Data Table",
                                   h2(textOutput("tbltitle", inline = TRUE)),
-                                # tags$div(downloadButton("downloaddf", "Download Data"), 
-                                #          style="float: right;"),
                                   p("Variables ending in E are estimates; variables ending in M are margins of error."),
-                                  DTOutput("tbl")
+                                  DTOutput("tbl"),
+                                  h3(textOutput("dltitle", inline = TRUE)),
+                                  downloadButton("downloadBtn", "Download")
                                 )
                               )
                             )
@@ -425,20 +425,24 @@ server <- function(input, output, session) {
               options = list(scrollX = TRUE))
   })
   
-  # data table title ----
+  ## data table title ----
   output$tbltitle <- renderText({
     paste("Data by", input$geo_df)
   })
   
-  # # download csv of data
-  # output$downloaddf <- downloadHandler(
-  #   filename = function() {
-  #     paste0("cville-region-", input$geo_df, ".csv")
-  #   },
-  #   content = function(file) {
-  #     write.csv(md(), file, row.names = FALSE)
-  #   })
-  
+  ## data download button function ----
+  output$downloadBtn <- downloadHandler(
+    filename = paste0("esva_data_download.csv"),
+    # filename = paste0("esva_", sub(" ", "_", tolower(input$geo_df)), "_data.csv"),
+    content = function(file) {
+      write.csv(st_drop_geometry(md()), file)
+    }
+  )
+
+  ## data download title ----
+  output$dltitle <- renderText({
+    paste0("Download Table Data (Current Geographic Level: ", input$geo_df, ")")
+  })
   
 }
 

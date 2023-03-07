@@ -1,6 +1,6 @@
 # Text for helpers()
 
-helpers <- list(counties = c("<b>Counties:</b> select one or more counties of interest to view. The localities selected appear on the map and as observations in the figures below."), 
+helpers <- list(counties = c("<b>Counties:</b> select one or more counties of interest to view. The localities selected appear on the map and as observations in the figures below. Use the Select/Deselect All button below to make many changes quickly."), 
                 
                geo = c("View indicators at the county level, the census tract level, or the block group level. Some indicators are only available at the tract or locality level.",
                "<b>County:</b> The counties and cities within the region.", "",
