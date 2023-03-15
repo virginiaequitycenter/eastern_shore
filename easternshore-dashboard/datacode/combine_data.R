@@ -2,7 +2,7 @@
 # Eastern Shore Virginia Equity Atlas
 ####################################################
 # Combine data for shiny app
-# Last updated: 01/27/2023
+# Last updated: 03/15/2023
 ####################################################
 # 1. Load libraries 
 # 2. Load data
@@ -278,6 +278,11 @@ source('datacode/helpers.R')
 nb.cols <- 10
 mycolors <- colorRampPalette(brewer.pal(8, "YlGnBu"))(nb.cols)
 
+# create data dictionary for download
+data_dict <- bind_rows(pretty, pretty2, pretty3) %>% 
+  unique() %>% 
+  select(-c("description")) %>% 
+  rename(variable_name = varname, description = goodname)
 
 # ....................................................
 # 8. Save for app ----
@@ -285,13 +290,13 @@ mycolors <- colorRampPalette(brewer.pal(8, "YlGnBu"))(nb.cols)
 save(counties_geo, counties, all_data, mycolors, 
      parks_sf, schools_sf, sabselem_sf, mcd_sf, group_df,
      ind_choices_county, ind_choices_bg, ind_choices_ct,
-     helpers,
-     file = "data/app_data_2022.Rdata")
+     helpers, data_dict,
+     file = "data/app_data_2022_3_15_23.Rdata")
 # load("data/app_data_2022.Rdata")
 
 save(counties_geo, counties, all_data, mycolors, 
      parks_sf, schools_sf, sabselem_sf, mcd_sf, group_df,
      ind_choices_county, ind_choices_bg, ind_choices_ct,
-     helpers,
+     helpers, data_dict,
      file = "eastern-shore/www/app_data_2022.Rdata")
 

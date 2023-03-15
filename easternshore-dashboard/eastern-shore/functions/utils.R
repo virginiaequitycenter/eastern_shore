@@ -15,6 +15,16 @@ accordianComponent <- function(id, btnText, content, id2, id3){
   '))
 }
 
+cardComponent <- function(content){
+  HTML(paste0('
+  <div class="card">
+    <div class="card-body" style="padding-top:0;">
+    ', content, '
+    </div>
+  </div>
+  '))
+}
+
 cardComponentSelect <- function(select, accordian){
   HTML(paste0('
   <div class="card">
