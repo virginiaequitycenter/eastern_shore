@@ -1,8 +1,11 @@
 ####################################################
-# Eastern Shore Profile
+# Eastern Shore Virginia Equity Atlas               
 ####################################################
+# Original scripts written by Lee LeBoeuf
+# adapted for Eastern Shore by Chris Barber
 # Acquire ACS data
-# Last updated: 03/01/2021
+# Last updated: 03/15/2023
+# Updates include: pulling 2021 ACS data and adding a few more variables 
 # Metrics from ACS (in common with tract level): 
 # * Total population
 # * Poverty, child poverty 
@@ -18,8 +21,10 @@
 # Metrics specific to locality level (from Decennial or ACS):
 # * Median HH Income by Race/Ethnicity
 # 
-# Based on: ACS 2015-2019 
-# Geography: Accomack, Northhampton
+# Based on: ACS 2017-2021 
+# Geography: Localities in VA's Eastern Shore
+#   Accomack County, VA
+#   Northampton County, VA
 ####################################################
 # 1. Load libraries, provide api key (if needed), identify variables
 # 2. Define variables, pull data
@@ -41,9 +46,9 @@ library(tidycensus)
 # census_api_key("", install = TRUE, overwrite = TRUE) # add key
 
 # Variable view helper
-# acs_var <- load_variables(2018, "acs5", cache = TRUE)
-# acs_var <- load_variables(2018, "acs5/subject", cache = TRUE)
-# acs_var <- load_variables(2018, "acs5/profile", cache = TRUE)
+# acs_var <- load_variables(2021, "acs5", cache = TRUE)
+# acs_var <- load_variables(2021, "acs5/subject", cache = TRUE)
+# acs_var <- load_variables(2021, "acs5/profile", cache = TRUE)
 
 # Variable of interest -
 ##  - Total population -- B01003_001
@@ -77,6 +82,9 @@ library(tidycensus)
 ##  - Percent of cost-burdened renters -- B25070_007+B25070_008+B25070_009+B25070_010/B25070_001
 ##  - Home ownership rates -- B25003_002/B25003_002
 ##  - Housing vacant unitss -- B25002_003/B25002_001
+##  - Number of households who receive cash public assistance/SNAP benefits -- B19058_002
+##  - Number of foreign-born residents -- B05002_013
+##  - Number of residents who have a disability -- C18130_003 + C18130_010 + C18130_017
 
 
 # ....................................................
@@ -84,8 +92,9 @@ library(tidycensus)
 
 # List of desired localities by FIPS
 ccode <- read_csv("datacode/county_codes.csv")
+ccode <- ccode[1:2,]
 region <- ccode$code # list of desired counties
-# - 001 Accomakc County  
+# - 001 Accomack County  
 # - 131 Northampton County
 
 # Get Data
@@ -111,7 +120,9 @@ varlist_b = c("B01003_001", # totalpop
               "B25003_002",  # owner-occupied housing units
               "B25003_001",  # occupied housing units
               "B25002_003",  # vacant housing units
-              "B25002_001")  # housing units
+              "B25002_001",  # housing units
+              "B19058_002",  # SNAP
+              "B05002_013")  # Foreign-born
 
 
 # Pull variables
@@ -120,7 +131,7 @@ county_data_s <- get_acs(geography = "county",
                         state = "VA", 
                         county = region, 
                         survey = "acs5",
-                        year = 2018, 
+                        year = 2021, 
                         output = "wide")
 
 county_data_b <- get_acs(geography = "county",
@@ -128,7 +139,7 @@ county_data_b <- get_acs(geography = "county",
                         state = "VA", 
                         county = region, 
                         survey = "acs5",
-                        year = 2018, 
+                        year = 2021, 
                         output = "wide")
 
 # rename variables
@@ -155,7 +166,9 @@ names(county_data_b) = c("GEOID", "NAME",
                         "ownoccE", "ownoccM",
                         "occhseE", "occhseM",
                         "vachseE", "vachseM",
-                        "allhseE", "allhseM")
+                        "allhseE", "allhseM",
+                        "snapE", "snapM",
+                        "foreignbE", "foreignbM")
 
 # Derive some variables
 county_data_b <- county_data_b %>% 
@@ -173,6 +186,18 @@ county_data_b <- county_data_b %>%
          vacrateM = round(vacrateM*100, 1)) %>% 
   select(-c(rentersumE, rentersumM,rent30E:occhseM))
 
+# Derive snap variables
+county_data_b <- county_data_b %>% 
+  mutate(perc_snaphseE = round((snapE / allhseE)*100,1),
+         perc_snaphseM = round(moe_prop(snapE, allhseE, snapM, allhseM), 2),
+         .keep = "all")
+
+# Derive foreign born variables
+county_data_b <- county_data_b %>% 
+  mutate(perc_forbE = round((foreignbE / totalpopE)*100,1),
+         perc_forbM = round(moe_prop(foreignbE, totalpopE, foreignbM, totalpopM), 2),
+         .keep = "all")
+
 
 # Get Data
 # pull tables (easier to just pull tables separately)
@@ -181,45 +206,52 @@ county_race <- get_acs(geography = "county",
           state = "VA", 
           county = region, 
           survey = "acs5",
-          year = 2018)
+          year = 2021)
 
 county_age <- get_acs(geography = "county", 
           table = "S0101", 
           state = "VA", 
           county = region, 
           survey = "acs5",
-          year = 2018)
+          year = 2021)
 
 county_enroll <- get_acs(geography = "county", 
           table = "S1401", 
           state = "VA", 
           county = region, 
           survey = "acs5", 
-          year = 2018)
+          year = 2021)
+
+county_disability <- get_acs(geography = "county", 
+                            table = "C18130", 
+                            state = "VA", 
+                            county = region, 
+                            survey = "acs5",
+                            year = 2021) 
 
 
 # ....................................................
-# 3. Metrics specific to locality level  ----
-varlist_race <- c("B19013B_001",  # hhinc_black
-                  "B19013D_001",  # hhinc_asion
-                  "B19013G_001",  # hhinc_multi
-                  "B19013H_001",  # hhinc_white
-                  "B19013I_001")  # hhinc_ltnx
-
-county_hhinc_race <- get_acs(geography = "county",
-                             variables = varlist_race,
-                             state = "VA",
-                             county = region,
-                             survey = "acs5",
-                             year = 2018,
-                             output = "wide")
-
-names(county_hhinc_race) = c("GEOID", "NAME",
-                         "hhinc_blackE", "hhinc_blackM",
-                         "hhinc_asianE", "hhinc_asianM",
-                         "hhinc_multiE", "hhinc_multiM",
-                         "hhinc_whiteE", "hhinc_whiteM",
-                         "hhinc_ltnxE", "hhinc_ltnxM")
+# # 3. Metrics specific to locality level  ----
+# varlist_race <- c("B19013B_001",  # hhinc_black
+#                   "B19013D_001",  # hhinc_asion
+#                   "B19013G_001",  # hhinc_multi
+#                   "B19013H_001",  # hhinc_white
+#                   "B19013I_001")  # hhinc_ltnx
+# 
+# county_hhinc_race <- get_acs(geography = "county",
+#                              variables = varlist_race,
+#                              state = "VA",
+#                              county = region,
+#                              survey = "acs5",
+#                              year = 2021,
+#                              output = "wide")
+# 
+# names(county_hhinc_race) = c("GEOID", "NAME",
+#                          "hhinc_blackE", "hhinc_blackM",
+#                          "hhinc_asianE", "hhinc_asianM",
+#                          "hhinc_multiE", "hhinc_multiM",
+#                          "hhinc_whiteE", "hhinc_whiteM",
+#                          "hhinc_ltnxE", "hhinc_ltnxM")
 
 # ....................................................
 # 4. Reduce and Combine data ----
@@ -254,7 +286,7 @@ county_age65 <- county_age %>%
   select(-variable)
 
 # tract_race: all groups present as rows in the table
-#             but other race and native hawaiian/pacific islander combined
+#             some other race and native hawaiian/pacific islander combined
 #             due to very small values
 county_white <- county_race %>% 
   filter(variable == "DP05_0077P") %>% 
@@ -319,6 +351,12 @@ county_schl <- county_schl_ratio %>%
             schlM = moe_prop(schl_num, schl_den, schl_numM, schl_denM),
             schlM = round(schlM*100,1))
 
+county_dis <- county_disability %>%
+  filter(variable == "C18130_003" | variable == "C18130_010" | variable == "C18130_017") %>%
+  group_by(GEOID, NAME) %>% 
+  summarize(disability_numE = sum(estimate), 
+            disability_numM = moe_sum(moe = moe, estimate = estimate))
+
 
 # Combine indicators
 # joining columns
@@ -336,11 +374,12 @@ county_data <- county_data_s %>%
   left_join(county_age24) %>% 
   left_join(county_age64) %>% 
   left_join(county_age65) %>% 
-  left_join(county_hhinc_race)
+  # left_join(county_hhinc_race) %>%
+  left_join(county_dis)
 
 county_data <- county_data %>% 
   mutate(geoid = GEOID,
-         year = "2019") %>% 
+         year = "2021") %>% 
   separate(geoid, into = c("state", "locality"), 
            sep = c(2)) %>% 
   select(GEOID, NAME, year, totalpopE, totalpopM, whiteE, whiteM, blackE, blackM, asianE, asianM, indigE, indigM, othraceE, othraceM, multiE, multiM, ltnxE, ltnxM, everything())
@@ -355,7 +394,6 @@ county_data %>% select_at(vars(ends_with("E"))) %>% summary()
 # 6. Save ----
 # save rcaa_recap and rcaa_recap_geo
 saveRDS(county_data, file = "data/county_data.RDS") 
-# county_data <- readRDS("data/county_data.RDS")
 
 
 

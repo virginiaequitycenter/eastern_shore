@@ -1,20 +1,20 @@
 ####################################################
-# Eastern Shore Profile
+# Eastern Shore Virginia Equity Atlas
 ####################################################
-# Acquire Additional Tract-Level data
-# Last updated: 03/01/2021
-# Metrics from various sources: 
-# * Small Area Life Expectancy Estimates: https://www.cdc.gov/nchs/nvss/usaleep/usaleep.html 
+# Original script written by Lee LeBoeuf
+# adapted for Eastern Shore by Chris Barber
+# Acquire Additional Tract-Level data: for post-2020 census tracts
+# Last updated: 01/23/2023
+# New data has not been published since the 2010-2015 estimates as of 07/17/2022
 # * Segregation measures (from ACS data, but with more derivation)
 #
-# TO ADD
-# * HMDA relevant metrics
-#
-# Geography: Accomack, Northhampton
+# Geography: Tracts in Localities in VA's Eastern Shore
+#     Accomack County, VA
+#     Northampton County, VA
 ####################################################
 # 1. Load libraries
-# 2. Small-area life expectancy estimates
-# 3. HMDA measures (not yet complete/incorporated)
+# 2. Segregation measures
+# 3. ADD Small-area life expectancy estimates if UPDATED
 ####################################################
 
 # ....................................................
@@ -25,41 +25,16 @@ library(tidyverse)
 library(tidycensus)
 
 ccode <- read_csv("datacode/county_codes.csv")
-region <- str_pad(as.character(ccode$code), width = 3, pad = "0") # list of desired counties
-
-
-# ....................................................
-# 2. Small-area life expectancy estimates ----
-# a. acquire ----
-
-# url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NVSS/USALEEP/CSV/VA_A.CSV"
-# download.file(url, destfile="tempdata/va_usasleep.csv", method="libcurl")
-
-# read data and rename
-lifeexp <- read_csv("tempdata/va_usasleep.csv")
-names(lifeexp) <- c("geoid", "state", "county", "tract", "life_exp", "se", "flag")
-
-# b. Limit to region and derive metrics ----
-lifeexp <- lifeexp %>% 
-  filter(county %in% region) %>% # 5 missing tracts (80 of 85)
-  rename(lifeexpE = life_exp,
-         locality = county) %>% 
-  mutate(lifeexpM = 1.64*se,
-         year = "2019") %>% 
-  select(-se, -flag)
-
-# check
-summary(lifeexp)
-
-# c. save ----
-saveRDS(lifeexp, file = "data/tract_life_exp.RDS") 
-# life_exp <- readRDS("data/tract_life_exp.RDS")
+ccode <- ccode[1:2,]  
+region <-ccode$code # list of desired counties
+# - 001 Accomack County  
+# - 131 Northampton County
 
 # ....................................................
-# 3. Segregation measures ----
+# 2. Segregation measures ----
 # a. acquire block group data ----
-race_table19 <-get_acs(geography = "block group", 
-                       year = 2019, 
+race_table <-get_acs(geography = "block group", 
+                       year = 2021, 
                        state = "VA",
                        county = region, 
                        table = "B03002", 
@@ -69,7 +44,7 @@ race_table19 <-get_acs(geography = "block group",
                        cache_table = T)
 
 # rename
-seg_blkgrp <- race_table19 %>%
+seg_blkgrp <- race_table %>%
   mutate(white = B03002_003E,
          black = B03002_004E,
          asian = B03002_006E,
@@ -78,7 +53,7 @@ seg_blkgrp <- race_table19 %>%
          multi = B03002_009E,
          hisp = B03002_012E, 
          total = B03002_001E,
-         year = 2019,
+         year = 2021,
          state = substr(GEOID, 1,2),
          county = substr(GEOID, 3,5),
          tract = substr(GEOID, 6,11),
@@ -86,8 +61,8 @@ seg_blkgrp <- race_table19 %>%
   select(GEOID, white, black, indig, asian, other, multi, hisp, total, year, state, county, tract, blkgrp) 
 
 # b. acquire tract data ----
-race_table19 <- get_acs(geography = "tract", 
-                        year = 2019, 
+race_table <- get_acs(geography = "tract", 
+                        year = 2021, 
                         state = "VA",
                         county = region, 
                         table = "B03002", 
@@ -97,7 +72,7 @@ race_table19 <- get_acs(geography = "tract",
                         cache_table = T)
 
 # rename
-seg_tract <- race_table19 %>%
+seg_tract <- race_table %>%
   mutate(cowhite = B03002_003E,
          coblack = B03002_004E,
          coasian = B03002_006E,
@@ -106,7 +81,7 @@ seg_tract <- race_table19 %>%
          comulti = B03002_009E,
          cohisp = B03002_012E, 
          cototal = B03002_001E,
-         year = "2019",
+         year = "2021",
          state = substr(GEOID, 1,2),
          county = substr(GEOID, 3,5),
          tract = substr(GEOID, 6,11)) %>% 
@@ -162,13 +137,42 @@ seg_tract <- dissim_wb %>%
 
 # round
 seg_tract <- seg_tract %>% 
-  mutate_if(is.numeric, round, 3) %>% 
-  mutate(year = "2019")
+  mutate_if(is.numeric, round, 3) 
 
 # check
 summary(seg_tract)
-pairs(seg_tract[2:7])
+pairs(seg_tract[3:8])
 
 # d. save ----
 saveRDS(seg_tract, file = "data/seg_tract.RDS")
-# seg_tract <- readRDS("data/seg_tract.RDS")
+
+
+# # ....................................................
+# # 3. Small-area life expectancy estimates ----
+# # a. acquire ----
+# if (!dir.exists("data/tempdata")){
+# dir.create("data/tempdata")}
+
+# url <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NVSS/USALEEP/CSV/VA_A.CSV"
+# download.file(url, destfile="../tempdata/va_usasleep.csv", method="libcurl")
+# 
+# # read data and rename
+# lifeexp <- read_csv("../tempdata/va_usasleep.csv")
+# names(lifeexp) <- c("geoid", "state", "county", "tract", "life_exp", "se", "flag")
+# 
+# # b. Limit to region and derive metrics ----
+# lifeexp <- lifeexp %>% 
+#   filter(county %in% region) %>% # 5 missing tracts (80 of 85)
+#   rename(lifeexpE = life_exp,
+#          locality = county) %>% 
+#   mutate(lifeexpM = 1.64*se,
+#          year = "2019") %>% 
+#   select(-se, -flag)
+# 
+# # check
+# summary(lifeexp)
+# 
+# # c. save ----
+# saveRDS(lifeexp, file = "../data/tract_life_exp.RDS") 
+# # life_exp <- readRDS("../data/tract_life_exp.RDS")
+

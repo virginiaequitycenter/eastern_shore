@@ -10,12 +10,15 @@ library(patchwork)
 acc_tract_2020 <- tracts(state = "51", county = "001", cb = TRUE, year = 2020)
 nor_tract_2020 <- tracts(state = "51", county = "131", cb = TRUE, year = 2020)
 
-acc_tract_2020_noncb <- tracts(state = "51", county = "001", cb = FALSE, year = 2021)
-nor_tract_2020_noncb <- tracts(state = "51", county = "131", cb = FALSE, year = 2021)
+# acc_tract_2020_noncb <- tracts(state = "51", county = "001", cb = FALSE, year = 2021)
+# nor_tract_2020_noncb <- tracts(state = "51", county = "131", cb = FALSE, year = 2021)
 
 # accomack tracts 2019
 acc_tract_2019 <- tracts(state = "51", county = "001", cb = TRUE, year = 2019)
 nor_tract_2019 <- tracts(state = "51", county = "131", cb = TRUE, year = 2019)
+
+# acc_tract_2019_noncb <- tracts(state = "51", county = "001", cb = FALSE, year = 2021)
+# nor_tract_2019_noncb <- tracts(state = "51", county = "131", cb = FALSE, year = 2021)
 
 # map
 ac19 <- ggplot(acc_tract_2019) + geom_sf(aes(fill = TRACTCE)) + 
