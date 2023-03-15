@@ -130,22 +130,22 @@ county_data <- county_data %>%
   left_join(seg_county, by = c("locality" = "county", "year" = "year")) %>% 
   select(move_last(., c("state", "locality")))
 
-# Generate HDI measure for County
-#.  function of school enrollment, educ attainment; life expectancy; median personal earnings
-#   "goalposts" defined in methodology: http://measureofamerica.org/Measure_of_America2013-2014MethodNote.pdf
-#   earnings goalposts are adjusted for inflation -- set to 2015 values
-
-county_data <- county_data %>% 
-  mutate(hlth_index = ( (lifeexpE-66) / (90-66) * 10),
-         inc_index = ( (log(earnE)-log(15776.86)) / (log(66748.26)-log(15776.86)) * 10),
-         attain_index = ( (((hsmoreE/100 + bamoreE/100 + gradmoreE/100)-0.5)/ (2-0.5)) *10),
-         enroll_index = (schlE-60)/(95-60)*10,
-         educ_index = attain_index*(2/3) + enroll_index*(1/3),
-         hd_index = round((hlth_index + educ_index + inc_index)/3,1))
-
-county_data <- county_data %>% 
-  select(-c("hlth_index", "inc_index", "attain_index", "enroll_index", "educ_index")) %>% 
-  select(move_last(., c("state", "locality")))
+# # Generate HDI measure for County
+# #.  function of school enrollment, educ attainment; life expectancy; median personal earnings
+# #   "goalposts" defined in methodology: http://measureofamerica.org/Measure_of_America2013-2014MethodNote.pdf
+# #   earnings goalposts are adjusted for inflation -- set to 2015 values
+# 
+# county_data <- county_data %>% 
+#   mutate(hlth_index = ( (lifeexpE-66) / (90-66) * 10),
+#          inc_index = ( (log(earnE)-log(15776.86)) / (log(66748.26)-log(15776.86)) * 10),
+#          attain_index = ( (((hsmoreE/100 + bamoreE/100 + gradmoreE/100)-0.5)/ (2-0.5)) *10),
+#          enroll_index = (schlE-60)/(95-60)*10,
+#          educ_index = attain_index*(2/3) + enroll_index*(1/3),
+#          hd_index = round((hlth_index + educ_index + inc_index)/3,1))
+# 
+# county_data <- county_data %>% 
+#   select(-c("hlth_index", "inc_index", "attain_index", "enroll_index", "educ_index")) %>% 
+#   select(move_last(., c("state", "locality")))
 
 # ....................................................
 # 4. Add nice county names ----
@@ -214,7 +214,7 @@ all_data <- all_data %>% filter(ALAND > 0)
 # fix 3 var names (fixed in googlesheet)
 j <- match(pretty2$varname, names(all_data))
 # remove hmda metadata until/unless county summaries are added
-j <- j[1:86]
+j <- j[c(1:65,76:83,85:85)]
 
 # add pretty labels, sources and about to all_data
 for(i in seq_along(j)){
@@ -236,13 +236,13 @@ unique(all_data$GEO_LEVEL)
 # Block group
 ind_bg <- all_data %>% 
   filter(GEO_LEVEL == "Block Group") %>% 
-  select(group_df$varname[1:44]) %>% # indexing the list removes hmda vars; add back in if county summaries included
+  select(group_df$varname[c(1:31, 37:43)]) %>% # indexing the list removes income by race, ahdi, and hmda vars; add back in if county summaries included
   map_lgl(~ !all(is.na(.x))) 
 
 # census tract
 ind_ct <- all_data %>% 
   filter(GEO_LEVEL == "Census Tract") %>% 
-  select(group_df$varname[1:44]) %>% 
+  select(group_df$varname[c(1:31, 37:43)]) %>% 
   map_lgl(~ !all(is.na(.x))) 
 
 # add indicator logicals to group_df and sort
@@ -250,7 +250,7 @@ ind_ct <- all_data %>%
 # column ct - TRUE if variable available for Census Tract
 # all vars available for County
 # (again, index on group_df removes hmda vars)
-group_df <- cbind(group_df[1:44,], bg = ind_bg[-length(ind_bg)], 
+group_df <- cbind(group_df[c(1:31, 37:43),], bg = ind_bg[-length(ind_bg)], 
                   ct = ind_ct[-length(ind_ct)]) %>% 
   arrange(group, goodname)
 

@@ -4,7 +4,7 @@
 # Acquire ACS data
 # Original script written by Lee LeBoeuf
 # adapted for Eastern Shore by Chris Barber
-# Last updated: 01/27/2023
+# Last updated: 03/14/2023
   # Updates include: pulling 2021 ACS data and adding a few more variables 
 # Metrics from ACS (in common with locality level): 
 # * Total population

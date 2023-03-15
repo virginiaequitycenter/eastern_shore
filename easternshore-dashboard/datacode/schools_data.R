@@ -41,8 +41,8 @@ options(timeout = max(1080, getOption("timeout")))
 #   dir.create("data/tempdata")}
 
 # # public schools -- updated public schools as of 01/23 are from 2021-2022 school year
-# download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PUBLICSCH_2122.zip", 
-#               destfile = "data/tempdata/public_schools.zip") # public school data file 
+# download.file(url = "https://nces.ed.gov/programs/edge/data/EDGE_GEOCODE_PUBLICSCH_2122.zip",
+#               destfile = "data/tempdata/public_schools.zip") # public school data file
 # unzip(zipfile = "data/tempdata/public_schools.zip", exdir = "data/tempdata/public_schools")
 
 # # private schools -- updated private schools as of 07/20 are from 2019-2020 school year (no 2021/22 data available)

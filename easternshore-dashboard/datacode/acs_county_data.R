@@ -4,8 +4,8 @@
 # Original scripts written by Lee LeBoeuf
 # adapted for Eastern Shore by Chris Barber
 # Acquire ACS data
-# Last updated: 01/27/2023
-  # Updates include: pulling 2021 ACS data and adding a few more variables 
+# Last updated: 03/15/2023
+# Updates include: pulling 2021 ACS data and adding a few more variables 
 # Metrics from ACS (in common with tract level): 
 # * Total population
 # * Poverty, child poverty 
@@ -231,27 +231,27 @@ county_disability <- get_acs(geography = "county",
 
 
 # ....................................................
-# 3. Metrics specific to locality level  ----
-varlist_race <- c("B19013B_001",  # hhinc_black
-                  "B19013D_001",  # hhinc_asion
-                  "B19013G_001",  # hhinc_multi
-                  "B19013H_001",  # hhinc_white
-                  "B19013I_001")  # hhinc_ltnx
-
-county_hhinc_race <- get_acs(geography = "county",
-                             variables = varlist_race,
-                             state = "VA",
-                             county = region,
-                             survey = "acs5",
-                             year = 2021,
-                             output = "wide")
-
-names(county_hhinc_race) = c("GEOID", "NAME",
-                         "hhinc_blackE", "hhinc_blackM",
-                         "hhinc_asianE", "hhinc_asianM",
-                         "hhinc_multiE", "hhinc_multiM",
-                         "hhinc_whiteE", "hhinc_whiteM",
-                         "hhinc_ltnxE", "hhinc_ltnxM")
+# # 3. Metrics specific to locality level  ----
+# varlist_race <- c("B19013B_001",  # hhinc_black
+#                   "B19013D_001",  # hhinc_asion
+#                   "B19013G_001",  # hhinc_multi
+#                   "B19013H_001",  # hhinc_white
+#                   "B19013I_001")  # hhinc_ltnx
+# 
+# county_hhinc_race <- get_acs(geography = "county",
+#                              variables = varlist_race,
+#                              state = "VA",
+#                              county = region,
+#                              survey = "acs5",
+#                              year = 2021,
+#                              output = "wide")
+# 
+# names(county_hhinc_race) = c("GEOID", "NAME",
+#                          "hhinc_blackE", "hhinc_blackM",
+#                          "hhinc_asianE", "hhinc_asianM",
+#                          "hhinc_multiE", "hhinc_multiM",
+#                          "hhinc_whiteE", "hhinc_whiteM",
+#                          "hhinc_ltnxE", "hhinc_ltnxM")
 
 # ....................................................
 # 4. Reduce and Combine data ----
@@ -374,7 +374,7 @@ county_data <- county_data_s %>%
   left_join(county_age24) %>% 
   left_join(county_age64) %>% 
   left_join(county_age65) %>% 
-  left_join(county_hhinc_race) %>%
+  # left_join(county_hhinc_race) %>%
   left_join(county_dis)
 
 county_data <- county_data %>% 
