@@ -23,8 +23,8 @@ load("www/app_data_2022.Rdata")
 # was not deploying on shinyapps:
 # https://stackoverflow.com/questions/61286108/error-in-cpl-transformx-crs-aoi-pipeline-reverse-ogrcreatecoordinatetrans
 all_data <- st_transform(all_data, 4326)
+all_data$pop <- as.character(all_data$totalpopE)
 counties_geo <- st_transform(counties_geo, 4326)
-
 
 # Define UI ---------------------------------------------------------------
 
@@ -48,8 +48,9 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                               width = 12,
                               cardComponent(
                                 accordianComponent("intro", "Dashboard Instructions",
-                                                   "Make selections in the boxes below to show demographic, economic and social data on the maps and correlation plot in tabs to the right.
-                                                    Variables include data related to Health, Housing, People, Youth & Education, Jobs, Wages & Income, and various Indices.",
+                                                   "Make selections in the boxes below to show demographic, economic and social data on the maps and plots in tabs below.
+                                                    Indicators include data related to Health, Housing, People, Youth & Education, Jobs, Wages & Income, and various Indices. 
+                                                   Data is available for download at the bottom of the page.",
                                                    "intro-1", "intro-2")
                               )
                             )
@@ -57,29 +58,31 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                           fluidRow(
                             column(
                               width = 4,
-                                cardComponentSelect(
+                                cardComponentSelectGeo(
                                 selectInput("indicator1",
                                     "Select First Equity Indicator:",
-                                    choices = ind_choices_county,
-                                    selected = ind_choices_county$People['Estimated Population']) %>% 
+                                    choices = ind_choices,
+                                    selected = ind_choices$People['Estimated Population']) %>% 
                                 helper(type = "inline",
                                   icon = "question-circle",
                                   content = helpers$indicator,
                                   size = "m"),
+                                textOutput("ind_geo1", inline = TRUE),
                                 accordianComponent("ind1", "Show Selected Indicator Definition", textOutput("ind1_abt", inline = TRUE),"var-def-1", "map-ind-1")
                                 )
                             ) %>% tagAppendAttributes(class="mb-3 mb-sm-0"),
                             column(
                               width = 4,
-                              cardComponentSelect(
+                              cardComponentSelectGeo(
                               selectInput("indicator2",
                                  "Select Second Equity Indicator:",
-                                 choices = ind_choices_county,
-                                 selected = ind_choices_county$Housing['Total Housing Units']) %>% 
+                                 choices = ind_choices,
+                                 selected = ind_choices$Housing['Total Housing Units']) %>% 
                               helper(type = "inline",
                                   icon = "question-circle",
                                   content = helpers$indicator2,
                                   size = "m"),
+                              textOutput("ind_geo2", inline = TRUE),
                               accordianComponent("ind2", "Show Selected Indicator Definition", textOutput("ind2_abt", inline = TRUE),"var-def-2", "map-ind-2")
                               )
                             ) %>% tagAppendAttributes(class="mb-3 mb-sm-0"),
@@ -106,7 +109,6 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                                             icon = "question-circle",
                                             content = helpers$geo,
                                             size = "m")
-                              # actionButton(inputId = "refresh", "Refresh Atlas")
                               )
                             ) %>% tagAppendAttributes(class="mb-3 mb-sm-0")
                           ), br(), 
@@ -116,7 +118,7 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                               tabsetPanel(
                                 id = "tabs",
                                 tabPanel(
-                                    "First Map Selection",
+                                    "First Indicator Map",
                                     value = "tab1",
                                     h2(textOutput("ind1_name", inline = TRUE)),
                                     p("Click on areas below to view names and indicator values."),
@@ -124,7 +126,7 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                                     br(),
                                     textOutput("source")
                                   ),
-                                tabPanel("Second Map Selection", 
+                                tabPanel("Second Indicator Map", 
                                     value = "tab2",
                                     h2(textOutput("ind2_name", inline = TRUE)),
                                     p("Click on areas below to view names and indicator values."),
@@ -139,21 +141,16 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                                               icon = "question-circle",
                                               content = helpers$correlation,
                                               size = "m"),
+                                    p("Each circle represents a county or census tract (depending on the selected geographic level), plotted by the values of the two selected Equity Indicators. The size of each circle is based on the estimated population of the county or census tract."),
                                     plotlyOutput("compare"),
                                     br(),
                                     textOutput("source_c")
                                   ),
                                 tabPanel(title = "Differences",
-                                         tags$div(style="font-size:13px", br(), tags$p("Each census tract in the selected Charlottesville region is ranked into three groups representing tracts with Low, Middle, or High values on the measure you select on the left (Variable 1). The height of the bar shows the average value of the measure you select on the right (Variable 2) within that group of tracts. Hover over each bar to see the average value on Variable 2.")),
+                                         h2(""),
+                                         p("Each census tract in the selected localities are ranked into three groups representing tracts with Low, Middle, or High values on the measure you select on the left (Indicator 1). The height of the bar shows the average value of the measure you select on the right (Indicator 2) within that group of tracts. Hover over each bar to see the average value on Indicator 2."),
                                          plotlyOutput(outputId = 'tercile_plot'), br()
-                                ) 
-                                # tabPanel("Data Table",
-                                #   h2(textOutput("tbltitle", inline = TRUE)),
-                                #   p("Variables ending in E are estimates; variables ending in M are margins of error."),
-                                #   DTOutput("tbl"),
-                                #   h3(textOutput("dltitle", inline = TRUE)),
-                                #   downloadButton("downloadBtn", "Download")
-                                # )
+                                )
                               )
                             )
                           ), br(), hr(),# end fluidRow
@@ -161,7 +158,7 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                             column(
                               width = 12,
                               h2("Download Data"),
-                              p("Data in this Atlas is provided as a compressed folder, which includes CSVs for data at the county, census tract, and block group levels as well as a data dictionary and README."),
+                              p("Data in this Atlas is provided as a compressed folder, which includes CSVs for data at the county, census tract, and block group levels and a data dictionary."),
                               downloadButton("downloadBtn", "Download"),
                               br(), hr(), br()
                             )
@@ -175,6 +172,15 @@ server <- function(input, output, session) {
   
   # to make helper() info render
   observe_helpers()
+  
+  # output available indicator geographic levels
+  output$ind_geo1 <- renderText({
+    paste0("Available Geographic Levels: ", attr(md()[[input$indicator1]], "geo_level"))
+  })
+  
+  output$ind_geo2 <- renderText({
+    paste0("Available Geographic Levels: ", attr(md()[[input$indicator2]], "geo_level"))
+  })
   
   # output indicator 1 name, for Source & Definition box
   output$ind1_name <- renderText({
@@ -359,7 +365,7 @@ server <- function(input, output, session) {
   })
 
   output$maptitle <- renderText({paste0(attr(md()[[input$indicator1]], "goodname"))})
-  output$source <- renderText({attr(md()[[input$indicator1]], "source")})
+  output$source <- renderText({paste0("Source: ", attr(md()[[input$indicator1]], "source"))})
 
  
 # Build Map 2 -------------------------------------------------------
@@ -391,7 +397,7 @@ server <- function(input, output, session) {
   output$maptitle2 <- renderText({
     if (input$indicator2 != "None") paste0(attr(md()[[input$indicator2]], "goodname")) })
   output$source2 <- renderText({
-    if (input$indicator2 != "None") attr(md()[[input$indicator2]], "source")})
+    if (input$indicator2 != "None") paste0("Source: ", attr(md()[[input$indicator2]], "source"))})
   
 # Build Scatterplot -------------------------------------------------------
   
@@ -406,32 +412,50 @@ server <- function(input, output, session) {
   
   output$compare <- renderPlotly({ # add loess line to this?
     d <- st_drop_geometry(md())
-    # if (!input$indicator2=="None") {
       plot_ly(data=d,  
               x = ~get(input$indicator1),
               y=  ~get(input$indicator2),
               color = ~county.nice,
               type = "scatter", 
               mode = "markers",
-              marker = list(size = 10,
-                            # colors = ~county.nice,
-                            line = list(color = 'rgba(0, 0, 0, .4)',
+              fill = ~"", # to remove line.width error
+              size = ~as.numeric(d$pop),
+              sizes = c(20, 500),
+              marker = list(line = list(color = 'rgba(0, 0, 0, .4)',
                                         width = 1)),
-              # Changed to Set2 for more visible colors for 2 counties
               colors = "Set2",
-              text = paste0(
-                            # d$county.nice, "<br>",
-                            md()[["NAME"]], "<br>",
-                            "Tract Name(s): ", md()[["tractnames"]], "<br>",
-                            attr(d[[input$indicator1]], "goodname"), ": ", 
-                            d[[input$indicator1]], "<br>",
-                            attr(d[[input$indicator2]], "goodname"), ": ", 
-                            d[[input$indicator2]]
-              ), 
+              text = if (input$geo_df == "County"){
+                ~paste0(
+                  md()[["NAME"]], "<br>",
+                  "Estimated Population: ", d$pop, "<br>",
+                  "<b>Indicator Selections:</b><br>",
+                  attr(d[[input$indicator1]], "goodname"), ": ", 
+                  d[[input$indicator1]], "<br>",
+                  attr(d[[input$indicator2]], "goodname"), ": ", 
+                  d[[input$indicator2]])
+              } else if (attr(d[[input$indicator1]], "goodname") == "Estimated Population"){
+                ~paste0(
+                  md()[["NAME"]], "<br>",
+                  "Tract Name(s): ", md()[["tractnames"]], "<br>",
+                  "<b>Indicator Selections:</b><br>",
+                  attr(d[[input$indicator1]], "goodname"), ": ", 
+                  d[[input$indicator1]], "<br>",
+                  attr(d[[input$indicator2]], "goodname"), ": ", 
+                  d[[input$indicator2]])
+              } else {
+                ~paste0(
+                  md()[["NAME"]], "<br>",
+                  "Tract Name(s): ", md()[["tractnames"]], "<br>",
+                  "Estimated Population: ", d$pop, "<br>",
+                  "<b>Indicator Selections:</b><br>",
+                  attr(d[[input$indicator1]], "goodname"), ": ", 
+                  d[[input$indicator1]], "<br>",
+                  attr(d[[input$indicator2]], "goodname"), ": ", 
+                  d[[input$indicator2]])
+              }, 
               hoverinfo='text') %>% 
         layout(xaxis=list(title=attr(d[[input$indicator1]], "goodname")),
                yaxis=list(title=attr(d[[input$indicator2]], "goodname")))
-    # }
   })
   
   # scatterplot source caption, if present
@@ -439,7 +463,8 @@ server <- function(input, output, session) {
     if (input$indicator2=="None") {
       paste("")
     } else {
-      paste(
+      paste0(
+        "Sources: ",
         attr(md()[[input$indicator1]], "goodname"), ": ", 
         attr(md()[[input$indicator1]], "source"), " ",
         attr(md()[[input$indicator2]], "goodname"), ": ", 
@@ -477,27 +502,11 @@ server <- function(input, output, session) {
       
     }
   })
-# Build Data Table -------------------------------------------------------
-  
-  ## output data table ----
-  output$tbl <-  renderDT({
-    datatable(st_drop_geometry(md()),
-              options = list(scrollX = TRUE))
-  })
-  
-  ## data table title ----
-  # output$tbltitle <- renderText({
-  #   paste("Data by", input$geo_df)
-  # })
+# Data Download -------------------------------------------------------
   
   ## data download button function ----
   output$downloadBtn <- downloadHandler(
-    filename = paste0("esva_data_download.zip"),
-    # filename = paste0("esva_", sub(" ", "_", tolower(input$geo_df)), "_data.csv"),
-    # content = function(file) {
-    #   write.csv(st_drop_geometry(md()), file)
-    # }
-    
+    filename = "esva_data_download.zip",
     content = function(fname) {
       tmpdir <- tempdir()
       setwd(tempdir())
@@ -521,11 +530,6 @@ server <- function(input, output, session) {
     contentType = "application/zip"
   )
 
-  ## data download title ----
-  # output$dltitle <- renderText({
-  #   paste0("Download Table Data (Current Geographic Level: ", input$geo_df, ")")
-  # })
-  
 }
 
 # Run the application -----------------------------------------------------

@@ -214,7 +214,7 @@ all_data <- all_data %>% filter(ALAND > 0)
 # fix 3 var names (fixed in googlesheet)
 j <- match(pretty2$varname, names(all_data))
 # remove hmda metadata until/unless county summaries are added
-j <- j[c(1:65,76:83,85:85)]
+j <- j[c(1:73)]
 
 # add pretty labels, sources and about to all_data
 for(i in seq_along(j)){
@@ -236,13 +236,13 @@ unique(all_data$GEO_LEVEL)
 # Block group
 ind_bg <- all_data %>% 
   filter(GEO_LEVEL == "Block Group") %>% 
-  select(group_df$varname[c(1:31, 37:43)]) %>% # indexing the list removes income by race, ahdi, and hmda vars; add back in if county summaries included
+  select(group_df$varname[c(1:38)]) %>% # indexing the list removes income by race, ahdi, and hmda vars; add back in if county summaries included
   map_lgl(~ !all(is.na(.x))) 
 
 # census tract
 ind_ct <- all_data %>% 
   filter(GEO_LEVEL == "Census Tract") %>% 
-  select(group_df$varname[c(1:31, 37:43)]) %>% 
+  select(group_df$varname[c(1:38)]) %>% 
   map_lgl(~ !all(is.na(.x))) 
 
 # add indicator logicals to group_df and sort
@@ -250,21 +250,37 @@ ind_ct <- all_data %>%
 # column ct - TRUE if variable available for Census Tract
 # all vars available for County
 # (again, index on group_df removes hmda vars)
-group_df <- cbind(group_df[c(1:31, 37:43),], bg = ind_bg[-length(ind_bg)], 
+group_df <- cbind(group_df[c(1:38),], bg = ind_bg[-length(ind_bg)], 
                   ct = ind_ct[-length(ind_ct)]) %>% 
   arrange(group, goodname)
 
+group_df <- group_df %>% mutate(ind_name = case_when(ct == "FALSE" ~ paste0(goodname, " (County Only)"), 
+                                                     ct == "TRUE" ~ goodname),
+                                geo_level = case_when(ct == "FALSE" ~ "County", 
+                                                      ct == "TRUE" ~ "County, Census Tract"))
+k <- match(group_df$varname, names(all_data))
+k <- k[c(1:38)]
+
+# add pretty labels, sources and about to all_data
+for(i in seq_along(k)){
+  attr(all_data[[k[i]]], which = "geo_level") <- group_df$geo_level[i]
+}
+
+# one list of available indicators
+ind_choices <- split(group_df, group_df$group) %>% 
+  map(function(x)pull(x, varname, name = ind_name))
+
 # different lists of available indicators by geo level
-ind_choices_county <- split(group_df, group_df$group) %>% 
-  map(function(x)pull(x, varname, name = goodname))
-
-ind_choices_bg <- split(group_df, group_df$group) %>% 
-  map(function(x)filter(x, bg)) %>% 
-  map(function(x)pull(x, varname, name = goodname))
-
-ind_choices_ct <- split(group_df, group_df$group) %>% 
-  map(function(x)filter(x, ct)) %>% 
-  map(function(x)pull(x, varname, name = goodname))
+# ind_choices_county <- split(group_df, group_df$group) %>% 
+#   map(function(x)pull(x, varname, name = goodname))
+# 
+# ind_choices_bg <- split(group_df, group_df$group) %>% 
+#   map(function(x)filter(x, bg)) %>% 
+#   map(function(x)pull(x, varname, name = goodname))
+# 
+# ind_choices_ct <- split(group_df, group_df$group) %>% 
+#   map(function(x)filter(x, ct)) %>% 
+#   map(function(x)pull(x, varname, name = goodname))
 
 # create list of counties
 counties <- levels(factor(tract_data_geo$county.nice))
@@ -279,9 +295,9 @@ nb.cols <- 10
 mycolors <- colorRampPalette(brewer.pal(8, "YlGnBu"))(nb.cols)
 
 # create data dictionary for download
-data_dict <- bind_rows(pretty, pretty2, pretty3) %>% 
-  unique() %>% 
-  select(-c("description")) %>% 
+data_dict <- pretty2[c(1:73),] %>% 
+  unique() %>%
+  select(-c("description")) %>%
   rename(variable_name = varname, description = goodname)
 
 # ....................................................
@@ -289,14 +305,14 @@ data_dict <- bind_rows(pretty, pretty2, pretty3) %>%
 # create new app_data.Rdata file
 save(counties_geo, counties, all_data, mycolors, 
      parks_sf, schools_sf, sabselem_sf, mcd_sf, group_df,
-     ind_choices_county, ind_choices_bg, ind_choices_ct,
+     ind_choices,
      helpers, data_dict,
-     file = "data/app_data_2022_3_15_23.Rdata")
+     file = "data/app_data_2022_v2023-03-16.Rdata")
 # load("data/app_data_2022.Rdata")
 
 save(counties_geo, counties, all_data, mycolors, 
      parks_sf, schools_sf, sabselem_sf, mcd_sf, group_df,
-     ind_choices_county, ind_choices_bg, ind_choices_ct,
+     ind_choices,
      helpers, data_dict,
      file = "eastern-shore/www/app_data_2022.Rdata")
 
