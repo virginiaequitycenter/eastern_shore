@@ -1,7 +1,7 @@
 # Published version
 # VA Eastern Shore Atlas
-# Updated 3/15/2023
-# Last Deployed: -
+# Updated 3/20/2023
+# Last Deployed: 3/20/2023
 
 library(shiny)
 library(bslib)
@@ -9,8 +9,6 @@ library(shinyhelper)
 library(tidyverse)
 library(leaflet)
 library(plotly)
-library(biscale)
-library(stringi)
 library(sf)
 library(DT)
 
@@ -134,6 +132,11 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                                     br(),
                                     textOutput("source2")
                                   ),
+                                # tabPanel(title = "Differences",
+                                #          h2(""),
+                                #          p("Each census tract in the selected localities are ranked into three groups representing tracts with Low, Middle, or High values on the measure you select on the left (Indicator 1). The height of the bar shows the average value of the measure you select on the right (Indicator 2) within that group of tracts. Hover over each bar to see the average value on Indicator 2."),
+                                #          plotlyOutput(outputId = 'tercile_plot'), br()
+                                # ),
                                 tabPanel("Selection Relationship",
                                     h2(textOutput("comptitle")) %>% 
                                       helper(type = "inline",
@@ -145,12 +148,7 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
                                     plotlyOutput("compare"),
                                     br(),
                                     textOutput("source_c")
-                                  ),
-                                tabPanel(title = "Differences",
-                                         h2(""),
-                                         p("Each census tract in the selected localities are ranked into three groups representing tracts with Low, Middle, or High values on the measure you select on the left (Indicator 1). The height of the bar shows the average value of the measure you select on the right (Indicator 2) within that group of tracts. Hover over each bar to see the average value on Indicator 2."),
-                                         plotlyOutput(outputId = 'tercile_plot'), br()
-                                )
+                                  )
                               )
                             )
                           ), br(), hr(),# end fluidRow
@@ -420,39 +418,43 @@ server <- function(input, output, session) {
               mode = "markers",
               fill = ~"", # to remove line.width error
               size = ~as.numeric(d$pop),
-              sizes = c(20, 500),
+              sizes = if (input$geo_df == "County"){
+                        c(900,2000)
+                      } else {
+                        c(50, 500)
+                      },
               marker = list(line = list(color = 'rgba(0, 0, 0, .4)',
                                         width = 1)),
               colors = "Set2",
               text = if (input$geo_df == "County"){
-                ~paste0(
-                  md()[["NAME"]], "<br>",
-                  "Estimated Population: ", d$pop, "<br>",
-                  "<b>Indicator Selections:</b><br>",
-                  attr(d[[input$indicator1]], "goodname"), ": ", 
-                  d[[input$indicator1]], "<br>",
-                  attr(d[[input$indicator2]], "goodname"), ": ", 
-                  d[[input$indicator2]])
-              } else if (attr(d[[input$indicator1]], "goodname") == "Estimated Population"){
-                ~paste0(
-                  md()[["NAME"]], "<br>",
-                  "Tract Name(s): ", md()[["tractnames"]], "<br>",
-                  "<b>Indicator Selections:</b><br>",
-                  attr(d[[input$indicator1]], "goodname"), ": ", 
-                  d[[input$indicator1]], "<br>",
-                  attr(d[[input$indicator2]], "goodname"), ": ", 
-                  d[[input$indicator2]])
-              } else {
-                ~paste0(
-                  md()[["NAME"]], "<br>",
-                  "Tract Name(s): ", md()[["tractnames"]], "<br>",
-                  "Estimated Population: ", d$pop, "<br>",
-                  "<b>Indicator Selections:</b><br>",
-                  attr(d[[input$indicator1]], "goodname"), ": ", 
-                  d[[input$indicator1]], "<br>",
-                  attr(d[[input$indicator2]], "goodname"), ": ", 
-                  d[[input$indicator2]])
-              }, 
+                      ~paste0(
+                        md()[["NAME"]], "<br>",
+                        "Estimated Population: ", d$pop, "<br>",
+                        "<b>Indicator Selections:</b><br>",
+                        attr(d[[input$indicator1]], "goodname"), ": ", 
+                        d[[input$indicator1]], "<br>",
+                        attr(d[[input$indicator2]], "goodname"), ": ", 
+                        d[[input$indicator2]])
+                    } else if (attr(d[[input$indicator1]], "goodname") == "Estimated Population"){
+                      ~paste0(
+                        md()[["NAME"]], "<br>",
+                        "Tract Name(s): ", md()[["tractnames"]], "<br>",
+                        "<b>Indicator Selections:</b><br>",
+                        attr(d[[input$indicator1]], "goodname"), ": ", 
+                        d[[input$indicator1]], "<br>",
+                        attr(d[[input$indicator2]], "goodname"), ": ", 
+                        d[[input$indicator2]])
+                    } else {
+                      ~paste0(
+                        md()[["NAME"]], "<br>",
+                        "Tract Name(s): ", md()[["tractnames"]], "<br>",
+                        "Estimated Population: ", d$pop, "<br>",
+                        "<b>Indicator Selections:</b><br>",
+                        attr(d[[input$indicator1]], "goodname"), ": ", 
+                        d[[input$indicator1]], "<br>",
+                        attr(d[[input$indicator2]], "goodname"), ": ", 
+                        d[[input$indicator2]])
+                    }, 
               hoverinfo='text') %>% 
         layout(xaxis=list(title=attr(d[[input$indicator1]], "goodname")),
                yaxis=list(title=attr(d[[input$indicator2]], "goodname")))
