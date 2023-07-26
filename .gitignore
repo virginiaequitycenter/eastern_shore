@@ -1,5 +1,4 @@
 # ignore supplementary folders
-data/
 dev/
 tempdata/
 dataraw/
