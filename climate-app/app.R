@@ -116,10 +116,10 @@ ui <- fluidPage(
                                                         tags$div(style="font-size:13px", tags$p("Each census tract in the Charlottesville region is represented with a dot, plotted by the value of the tract on the measures you select on the left (Variable 1) and the right (Variable 2). The size of each dot is based on the population of the tract so that tracts with more people appear larger and the color is based on the locality of the tract. The gray figures on the top and right show how frequently high and low values of the selected variables occur in the region; taller bars mean that range of values is more common.")),
                                                         plotlyOutput(outputId = "scatterplot", width = '100%', height = '450')
                                                ),
-                                               # tabPanel(title = "Differences",
-                                               #          tags$div(style="font-size:13px", tags$p("Each census tract in the selected Charlottesville region is ranked into three groups representing tracts with Low, Middle, or High values on the measure you select on the left (Variable 1). The height of the bar shows the average value of the measure you select on the right (Variable 2) within that group of tracts. Hover over each bar to see the average value on Variable 2.")),
-                                               #          plotlyOutput(outputId = 'tercile_plot')
-                                               # ),
+                                               tabPanel(title = "Differences",
+                                                        tags$div(style="font-size:13px", tags$p("Each census tract in the selected Charlottesville region is ranked into two groups with the Lowest or Highest values on the measure you select on the left (Variable 1). The height of the bar shows the average value of the measure you select on the right (Variable 2) within that group of tracts. Hover over each bar to see the average value on Variable 2.")),
+                                                        plotlyOutput(outputId = 'tercile_plot')
+                                               ),
                                                tabPanel(title = "Variable Details",
                                                         tags$br(),
                                                         strong(textOutput("var1_name")),
@@ -317,31 +317,31 @@ server <- function(input, output, session) {
     }
   })
 
-  # ## output tercile plot ----
-  # output$tercile_plot <- renderPlotly({
-  #   if (input$indicator1 %in% cant_map | input$indicator2 %in% cant_map | input$indicator1 == input$indicator2 | length(input$locality) == 0) {
-  #     plotly_empty()
-  #   } else {
-  #     to_tercile <- bi_class(geo_data(), x = x, y = y, style = "quantile", dim = 3)
-  #     to_tercile$var1_tercile <- stri_extract(to_tercile$bi_class, regex = '^\\d{1}(?=-\\d)')
-  # 
-  #     to_tercile$`Var 1 Group` <- ifelse(to_tercile$var1_tercile == 1, 'Low', ifelse(to_tercile$var1_tercile == 2, 'Medium', ifelse(to_tercile$var1_tercile == 3, 'High', '')))
-  #     to_tercile <- to_tercile %>% group_by(var1_tercile) %>% mutate(`Var 2 Mean` = mean(y, na.rm = T)) %>% slice(1)
-  #     t <- ggplot(to_tercile, aes(x = var1_tercile, y = `Var 2 Mean`,
-  #                                 fill = var1_tercile, label = `Var 1 Group`,
-  #                                 text = paste0('Mean of ', attr(to_tercile$y, "goodname"), ': ', round(`Var 2 Mean`, digits = 2)))) +
-  #       geom_bar(stat = 'identity', width = 0.66) +
-  #       scale_fill_manual(values = c('#dfb0d6', '#a5add3', '#569ab9')) +
-  #       scale_x_discrete(labels = paste0(c('Lowest ', 'Middle ', 'Highest '), 'third of tracts')) +
-  #       labs(x = attr(to_tercile$x, "goodname"),
-  #            y = attr(to_tercile$y, "goodname")) +
-  #       theme_minimal()
-  # 
-  #     ggplotly(t, tooltip = c('text')) %>%
-  #       layout(showlegend = FALSE, yaxis = list(side = "right", fixedrange = T), xaxis = list(fixedrange = T))
-  # 
-  #   }
-  # })
+  ## output tercile plot ----
+  output$tercile_plot <- renderPlotly({
+    if (input$indicator1 %in% cant_map | input$indicator2 %in% cant_map | input$indicator1 == input$indicator2 | length(input$locality) == 0) {
+      plotly_empty()
+    } else {
+      to_tercile <- bi_class(geo_data(), x = x, y = y, style = "quantile", dim = 2)
+      to_tercile$var1_tercile <- stri_extract(to_tercile$bi_class, regex = '^\\d{1}(?=-\\d)')
+
+      to_tercile$`Var 1 Group` <- ifelse(to_tercile$var1_tercile == 1, 'Low', ifelse(to_tercile$var1_tercile == 2, 'Medium', ifelse(to_tercile$var1_tercile == 3, 'High', '')))
+      to_tercile <- to_tercile %>% group_by(var1_tercile) %>% mutate(`Var 2 Mean` = mean(y, na.rm = T)) %>% slice(1)
+      t <- ggplot(to_tercile, aes(x = var1_tercile, y = `Var 2 Mean`,
+                                  fill = var1_tercile, label = `Var 1 Group`,
+                                  text = paste0('Mean of ', attr(to_tercile$y, "goodname"), ': ', round(`Var 2 Mean`, digits = 2)))) +
+        geom_bar(stat = 'identity', width = 0.66) +
+        scale_fill_manual(values = c('#dfb0d6', '#a5add3', '#569ab9')) +
+        scale_x_discrete(labels = c('Tracts above the median ', 'Tracts above the median ')) +
+        labs(x = attr(to_tercile$x, "goodname"),
+             y = attr(to_tercile$y, "goodname")) +
+        theme_minimal()
+
+      ggplotly(t, tooltip = c('text')) %>%
+        layout(showlegend = FALSE, yaxis = list(side = "right", fixedrange = T), xaxis = list(fixedrange = T))
+
+    }
+  })
 
   ## refresh app ----
   observeEvent(input$refresh, session$reload())

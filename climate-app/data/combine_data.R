@@ -32,10 +32,9 @@ acs <- read_csv("eastern_shore_collection/data/acs_eastern_tract.csv") %>% # fix
   mutate(geoid = as.character(GEOID)) %>% 
   select(geoid, locality, tract, ends_with("E"))
 
-# Missing
-# life <- read_csv("eastern_shore_collection/data/lifeexp_cville_tract.csv") %>% 
-#   mutate(geoid = as.character(GEOID)) %>% 
-#   select(geoid, life_expectancy)
+life <- read_csv("eastern_shore_collection/data/lifeexp_eastern_tract.csv") %>%
+  mutate(geoid = as.character(GEOID)) %>%
+  select(geoid, life_expectancy)
 
 air <- read_csv("eastern_shore_collection/data/airquality_eastern_tract.csv") %>% 
   mutate(geoid = as.character(gid)) %>% 
@@ -95,6 +94,15 @@ walk <- read_csv("eastern_shore_collection/data/walk_eastern_tract.csv") %>%
   mutate(geoid = as.character(FIPS_TRACT)) %>%
   select(geoid, locality, avg_intersection_density:avg_walkability_index)
 
+flood <- read_csv("eastern_shore_collection/data/nfhl_eastern_tracts.csv") %>%
+  mutate(geoid = as.character(GEOID)) %>%
+  select(-'...1', -GEOID)
+
+# need to reshape the flood hazard data so that it matches the googlesheet information 
+flood <- flood %>%
+  pivot_wider(names_from = zone, id_cols = geoid,
+              values_from = c(area, perc))
+
 # ADD LATER 
 # ejscreen (only blockgroup until aggregated, needs processing)
 # walkability (only blockgroup until aggregated, needs processing), 
@@ -113,7 +121,7 @@ walk <- read_csv("eastern_shore_collection/data/walk_eastern_tract.csv") %>%
 # Merge tract data ----
 df <- acs %>% 
   left_join(cdc) %>% 
-  # left_join(life) %>% 
+  left_join(life) %>%
   left_join(air) %>% 
   left_join(lexp) %>% 
   left_join(daym) %>% 
@@ -124,6 +132,7 @@ df <- acs %>%
   left_join(nri) %>% 
   left_join(walk) %>%
   left_join(ejs) %>%
+  left_join(flood) %>%
   select(-state)
 
 df <- df %>% 
@@ -141,7 +150,7 @@ googlesheets4::gs4_deauth()
 url_sheet <- "https://docs.google.com/spreadsheets/d/1nqm3DuVXD1ObbVe_deacvT7uSLdBXfQJo3mkbqDwrVo/edit?usp=sharing"
 
 pretty_acs <- googlesheets4::read_sheet(url_sheet, sheet = "acs")
-# pretty_lif <- googlesheets4::read_sheet(url_sheet, sheet = "life")
+pretty_lif <- googlesheets4::read_sheet(url_sheet, sheet = "life")
 pretty_cdc <- googlesheets4::read_sheet(url_sheet, sheet = "cdc_places")
 pretty_air <- googlesheets4::read_sheet(url_sheet, sheet = "airquality")
 pretty_lex <- googlesheets4::read_sheet(url_sheet, sheet = "lead_exposure")
@@ -153,12 +162,13 @@ pretty_ls8 <- googlesheets4::read_sheet(url_sheet, sheet = "landsat8")
 pretty_nri <- googlesheets4::read_sheet(url_sheet, sheet = "fema_nri")
 pretty_wlk <- googlesheets4::read_sheet(url_sheet, sheet = "walkability")
 pretty_ejs <- googlesheets4::read_sheet(url_sheet, sheet = "ejscreen")
-#pretty_nfh <- googlesheets4::read_sheet(url_sheet, sheet = "nfhl")
+pretty_nfh <- googlesheets4::read_sheet(url_sheet, sheet = "nfhl")
 
 pretty <- bind_rows(pretty_acs, pretty_cdc, pretty_air,
                     pretty_lex, pretty_dym, pretty_fcc,
                     pretty_leb, pretty_nlc, pretty_ls8,
-                    pretty_nri, pretty_wlk, pretty_ejs)
+                    pretty_nri, pretty_wlk, pretty_ejs,
+                    pretty_lif, pretty_nfh)
 
 # Adapt Clay's code to assign attributes
 # add pretty metadata to as var attribute: name, source, description
