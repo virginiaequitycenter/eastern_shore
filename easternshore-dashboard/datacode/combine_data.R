@@ -78,7 +78,7 @@ tractnames$GEOID <- as.character(tractnames$GEOID)
 
 
 # variable metadata/attributes
-# pretty table contains better variable lables, sources, and descriptions
+# pretty table contains better variable labels, sources, and descriptions
 # gs_auth(new_user = TRUE)
 # googlesheets4::gs4_deauth()
 

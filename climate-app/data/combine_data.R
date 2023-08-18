@@ -103,6 +103,14 @@ flood <- flood %>%
   pivot_wider(names_from = zone, id_cols = geoid,
               values_from = c(area, perc))
 
+# Tract names 
+# Currently using tract name data from /tracts
+tractnames <- read_csv("eastern_shore_collection/data/tractnames.csv")
+tractnames <- tractnames %>%
+  select(c("c", "tract", "names")) %>%
+  rename(tractnames = names)
+# tractnames$GEOID <- as.character(tractnames$GEOID)
+
 # ADD LATER 
 # ejscreen (only blockgroup until aggregated, needs processing)
 # walkability (only blockgroup until aggregated, needs processing), 
@@ -115,7 +123,6 @@ flood <- flood %>%
   # lodes_residentcommute, lodes_workercommute, 
 # food_retail (maybe as point?) or aggregate/count in tract?
 # noaa for county
-
 
 ## ......................................
 # Merge tract data ----
@@ -133,7 +140,8 @@ df <- acs %>%
   left_join(walk) %>%
   left_join(ejs) %>%
   left_join(flood) %>%
-  select(-state)
+  left_join(tractnames) %>%
+  select(-state, -c)
 
 df <- df %>% 
   mutate(pop = totalpopE)

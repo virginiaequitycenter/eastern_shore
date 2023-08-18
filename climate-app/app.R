@@ -210,7 +210,7 @@ server <- function(input, output, session) {
         dplyr::select(x = !!sym(input$indicator1),
                       y = !!sym(input$indicator2),
                       locality, countyname, tract, geoid,
-                      pop = pop) %>%
+                      pop = pop, tractnames) %>%
         dplyr::filter(locality %in% input$locality) %>%
         drop_na()
     }
@@ -310,6 +310,7 @@ server <- function(input, output, session) {
                       fillOpacity = 0.8,
                       bringToFront = T),
                     popup = paste0("Locality: ", to_map$countyname, ", tract ", to_map$tract, "<br>",
+                                   to_map$tractnames, "<br>",
                                    attr(to_map$x, "goodname"), ": ", round(to_map$x, 2),  "<br>",
                                    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Relative to other tracts: ", to_map$var1_tercile_cat, "<br>",
                                    attr(to_map$y, "goodname"), ": ", round(to_map$y, 2), "<br>",
