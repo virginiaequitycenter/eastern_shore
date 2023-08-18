@@ -30,7 +30,7 @@ es <- c('51001','51131')
 
 # claims <- read_csv("https://www.fema.gov/api/open/v1/FimaNfipClaims.csv")
 
-claims <- readRDS('data/fema_df.rds') #keeping this in for my purposes
+claims <- readRDS('fema_df.rds') #keeping this in for my purposes
 
 vars <- load_variables(year = 2021,  dataset = "acs5")
 
@@ -58,6 +58,8 @@ es_housing <- es_housing %>%
 fema_va <- claims %>%
   filter(state == 'VA') %>%
   rename(GEOID = censusTract)
+
+# write_rds(fema_va, "fema_df.rds")
 
 fema_es_all <- claims %>%
   filter(countyCode %in% es)
@@ -132,6 +134,54 @@ leaflet(fema_es_2010) %>%
                    popup = fema_es_2010$censusTract)
 # Hover over tract and click on point to gauge how accurate it is
 # doesn't seem to be very useful
+
+### Lee's addition: #########################################################################
+# trying to figure out a way to see if the 
+# fema reported census tract matches the census tract from the lat 
+# and long they report as well. 
+
+# going to create a map where the census tracts are colored, and the 
+# points are colored by the census tracts reported by fema to see 
+# if they fall in a matching color 
+
+# need to create factors in the data that will map the polygons and the 
+# data for the circles so that each census tract gets assigned the same color 
+
+# creating data frame for colors and census tracts so that they will match 
+
+cl <- data.frame(color = c("#f94144","#f9844a","#4d908e","#c8b6ff",
+                                    "#90be6d", "#43aa8b", "#fff3b0", "#da627d",
+                                    "#577590", "#277da1", "#218380", "#b5838d",
+                                    "#00509d", "#6930c3", "#d81159","#a68a64",
+                                    "#8f2d56", "#f8961e", "#ffca3a", "#6b9080"),
+                  censusTract = c("51001990100", "51001090300","51001090401", "51001090102", "51001090700",
+                                  "51131930100", "51131930200", "51001090202", "51001090500", "51131990100",
+                                  "51001980100", "51001090101", "51001980200", "51001090800", "51001090600",
+                                  "51001090402", "51001090201", "51131930301", "51131930302", "51001990200"))
+
+es_housing <- es_housing %>%
+  left_join(cl, by = "censusTract")
+
+fema_es_2010 <- fema_es_2010 %>%
+  rename(censusTract = GEOID) %>%
+  left_join(cl, by = "censusTract")
+
+# fema_es_2010 %>% 
+#   st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>% 
+#   st_jitter(factor = 0.001)
+                     
+# pal <- colorFactor(colors, domain = es_housing$censusTract)
+                     
+leaflet() %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = es_housing, 
+              fillColor = es_housing$color, 
+              fillOpacity = .5,
+              weight = 0.5, label = es_housing$censusTract) %>%
+  addCircleMarkers(data = fema_es_2010,
+                   fillColor = fema_es_2010$color,
+                   stroke = F, opacity = 1, radius = 3,
+                   popup = fema_es_2010$censusTract)
 
 
 # What are the stats per Census tract? 
