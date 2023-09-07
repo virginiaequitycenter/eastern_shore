@@ -1,7 +1,7 @@
 # Published version
 # VA Eastern Shore Atlas
-# Updated 8-23-2023
-# Last Deployed: 8-23-2023
+# Updated 9-7-2023
+# Last Deployed: 9-7-2023
 
 library(shiny)
 library(bslib)
@@ -143,9 +143,9 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
               h3("Download Data"),
               p("Data in this Atlas is provided as a compressed folder, which includes CSVs for data at the census tract level and a data dictionary."),
               downloadButton("downloadBtnCli", "Download"),
-              br(), hr(), br() 
-              # h4("Citation"),
-              # p("The Equity Center, Democratization of Data Initiative; \"Eastern Shore Climate Equity Dashboard Prototype\"; An Initiative of the UVA Karsh Institute of Democracy Center for the Redress of Inequity Through Community-Engaged Scholarship; Accessed ", Sys.Date(), "; https://equityatlas.virginiaequitycenter.org/dashboards/climate-dashboard/.")
+              br(),
+              h3("Citation"),
+              p("The Equity Center, Democratization of Data Initiative; \"Eastern Shore of Virginia Climate Equity Atlas Prototype\"; An Initiative of the UVA Karsh Institute of Democracy Center for the Redress of Inequity Through Community-Engaged Scholarship; Accessed ", Sys.Date(), "; https://virginiaequitycenter.shinyapps.io/eastern-shore-atlas/.")
               
             )
           ) # end fluidRow
@@ -275,7 +275,10 @@ ui <- htmlTemplate(filename = "esva-template.html", main =
               h2("Download Data"),
               p("Data in this Atlas is provided as a compressed folder, which includes CSVs for data at the county, census tract, and block group levels and a data dictionary."),
               downloadButton("downloadBtn", "Download"),
-              br(), hr(), br()
+              br(),
+              h3("Citation"),
+              p("The Equity Center, Democratization of Data Initiative; \"Eastern Shore of Virginia Social & Economic Equity Atlas\"; An Initiative of the UVA Karsh Institute of Democracy Center for the Redress of Inequity Through Community-Engaged Scholarship; Accessed ", Sys.Date(), "; https://virginiaequitycenter.shinyapps.io/eastern-shore-atlas/.")
+              # br(), hr(), br()
             )
           ) # end fluidRow
         ) # end tabPanel S&E App
@@ -328,7 +331,7 @@ server <- function(input, output, session) {
   })
   # reactive function to detect when variable 1, variable 2, or locality selection changes
   listen_closely <- reactive({
-    list(input$variable1,input$variable2, input$locality)
+    list(input$variable1, input$variable2, input$locality)
   })
   # when a variable or locality selection is changed, render the appropriate bichoropleth without losing the legend
   observeEvent(listen_closely(), {
@@ -417,7 +420,9 @@ server <- function(input, output, session) {
                            alpha = .75,
                            text = paste0("Locality: ", d$countyname, "<br>",
                                          "Census tract: ", d$tract, "<br>",
+                                         "Tract Name(s): ", d$tractnames, "<br>",
                                          "Population: ", d$pop, "<br>",
+                                         "<b>Variable Selections:</b><br>",
                                          attr(d$x, "goodname"), ": ", round(d$x, 2), "<br>",
                                          attr(d$y, "goodname"), ": ", round(d$y, 2), "<br>"),
                            hoverinfo = "text") %>%
