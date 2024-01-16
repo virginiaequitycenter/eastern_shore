@@ -12,7 +12,7 @@ library(lehdr)
 
 ## ACS locality, year ----
 fips <- c("001", "131")
-year <- 2021
+year <- 2022
 
 ### Block group ----
 # to show variation
@@ -175,6 +175,33 @@ online <- blkgrp_online %>%
 
 rm(blkgrp_online, blkgrp_hh)
 
+#### age of housing stock ----
+blkgrp_bldgage <- get_acs(geography = "block group", 
+                           table = "B25034", 
+                           state = "VA", 
+                           county = fips, 
+                           survey = "acs5",
+                           year = year)
+
+blkgrp_bldg <- blkgrp_bldgage %>% 
+  filter(variable == "B25034_001") %>% 
+  select(-variable) %>% 
+  rename(totbldg_est = estimate,
+         totbldg_moe = moe)
+
+bldgage <- blkgrp_bldgage %>% 
+  filter(variable %in% c("B25034_008", "B25034_009", "B25034_010", "B25034_011")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(bldgage70_est = sum(estimate),
+            bldgage70_moe = moe_sum(moe, estimate)) %>% 
+  left_join(blkgrp_bldg) %>% 
+  mutate(bldgage70per_est = round((bldgage70_est/totbldg_est)*100, 2),
+         bldgage70per_moe = round((moe_prop(bldgage70_est, totbldg_est, bldgage70_moe, totbldg_moe))*100, 2)) %>% 
+  select(GEOID, NAME, totbldg_est, totbldg_moe, everything()) %>% 
+  ungroup()
+
+rm(blkgrp_bldg, blkgrp_bldgage)
+
 #### money ----
 # median hh income, gross rent, home value
 varlist = c(medhhinc = "B19013_001",  # hhinc
@@ -192,14 +219,16 @@ money <- get_acs(geography = "block group",
   rename_with(~str_replace(., "M$", "_moe")) %>% 
   rename_with(~str_replace(., "E$", "_est"))
 
+
 #### join ----
 blkgrp_data <- race %>% 
   left_join(age) %>% 
   left_join(online) %>% 
   left_join(tenure) %>% 
+  left_join(bldgage) %>% 
   left_join(money)
 
-rm(race, age, online, tenure, money)
+rm(race, age, online, tenure, bldgage, money)
 
 # citizenship status not available by block group
 # language status not available by block group
@@ -306,7 +335,39 @@ county_online <- bind_rows(county_online, county_notonline) %>%
   select(GEOID, NAME, variable, estimate, totalhh = summary_est) %>% 
   mutate(demographic = "online")
 
-# median hh income, gross rent, home value
+#### age of housing stock, pre 1970 ----
+county_bldg <- get_acs(geography = "county", 
+                      variables = c(bldg60 = "B25034_008", bldg50 = "B25034_009",
+                                    bldg40 = "B25034_010", bldg30 = "B25034_011"), 
+                      state = "VA", 
+                      county = fips, 
+                      survey = "acs5",
+                      year = year,
+                      summary_var = "B25034_001") 
+
+county_bldgage <- county_bldg %>% 
+  select(GEOID, NAME, variable, estimate, totalbldg = summary_est) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(estimate = sum(estimate),
+            totalbldg = first(totalbldg)) %>% 
+  ungroup() %>% 
+  mutate(demographic = "housing_age",
+         variable = "bldgpre70")
+
+county_bldgage2 <- county_bldg %>% 
+  select(GEOID, NAME, variable, estimate, totalbldg = summary_est) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(bldgpre70 = sum(estimate),
+            totalbldg = first(totalbldg)) %>% 
+  ungroup() %>% 
+  mutate(estimate = totalbldg - bldgpre70, 
+         demographic = "housing_age",
+         variable = "bldgpost70") %>% 
+  select(-bldgpre70)
+
+county_bldgage <- bind_rows(county_bldgage, county_bldgage2)
+
+#### median hh income, gross rent, home value ----
 varlist = c(medhhinc = "B19013_001",  # hhinc
             medrent = "B25064_001", # median gross rent
             medhome = "B25077_001") # median home value
@@ -324,9 +385,10 @@ county_money <- get_acs(geography = "county",
   select(-moe)
 
 #### join ----
-county_data <- bind_rows(county_race, county_age, county_online, county_ten, county_money)
+county_data <- bind_rows(county_race, county_age, county_online, 
+                         county_ten, county_bldgage, county_money)
 county_data <- county_data %>% 
-  select(GEOID, NAME, demographic, variable, estimate, totalpop, totalhh)
+  select(GEOID, NAME, demographic, variable, estimate, totalpop, totalhh, totalbldg)
 
 rm(county_age, county_money, county_online, county_notonline, county_race, county_ten)
 
