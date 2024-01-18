@@ -537,7 +537,7 @@ plot_blkgrp_hage <-
 
 annotate_figure(
   ggarrange(plot_hage_county, plot_blkgrp_hage, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Age of Houseing: Built Before and After 1970", face = "bold", size = 16)
+  top = text_grob("Age of Housing: Built Before and After 1970", face = "bold", size = 16)
 )
 
 ```
