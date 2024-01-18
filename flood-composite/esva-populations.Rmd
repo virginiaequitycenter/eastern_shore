@@ -1,0 +1,543 @@
+---
+title: "ESVA Population Data"
+date: "2024-01-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Libraries ----
+library(tidyverse)
+library(tidycensus)
+library(lehdr)
+library(ggpubr)
+library(stringr)
+
+## Bring in block group and county data ----
+popdat_blkgrp <- read_csv("population_blkgrp.csv")
+popdat_blkgrp <- popdat_blkgrp %>% 
+  separate_wider_delim(NAME, delim = "; ", names = c("block_grp", "tract", "county", "state"))
+
+popdat_county <- read_csv("population_county.csv")
+popdat_county <- popdat_county %>% 
+  separate_wider_delim(NAME, delim = ", ", names = c("county", "state"))
+
+## colors
+
+acc_pal <- "#6fc1ff"
+north_pal <- "#ff9793"
+
+pal <- c("#3aadfc", "#e74b77")
+
+```
+
+# Demographics on the Eastern Shore of Virgina
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Race/Ethinicty ----
+county_race <- popdat_county %>% 
+  filter(demographic == "race") %>% 
+  mutate(percent = (estimate/totalpop) * 100,
+         groups = factor(variable, levels = c("whitepop", "blackpop", "ltnxpop", "remainpop"), labels = c("White", "Black", "Hispanic", "All Remaining Groups")))
+
+plot_race_county <- county_race %>% 
+  ggplot(aes(x = groups, y = percent, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# Blockgroup data
+blkgrp_race_pop <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+blkgrp_race_per <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  na.omit()
+
+blkgrp_race <- merge(blkgrp_race_pop, blkgrp_race_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_race <- 
+  blkgrp_race %>% 
+  group_by(county) %>%
+  ggplot(aes(x = groups, y = percent, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_race, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+
+annotate_figure(
+  ggarrange(plot_race_county, plot_blkgrp_race, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Race and Ethnicity", face = "bold", size = 16)
+)
+
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Age ----
+county_age <- popdat_county %>% 
+  filter(demographic == "age") %>% 
+  mutate(percent = (estimate/totalpop) * 100,
+         groups = factor(variable, levels = c("age17pop", "age18to64pop", "age65pop"), labels = c("Under 18", "18-64 yrs", "65 and Older")))
+
+plot_age_county <- county_age %>% 
+  ggplot(aes(x = groups, y = percent, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Age Group") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# blockgroup data
+blkgrp_age_pop <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("age17pop_est", "age18to64pop_est", "age65pop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("age17pop_est", "age18to64pop_est", "age65pop_est"), labels = c("Under 18", "18-64 yrs", "65 and Older"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+blkgrp_age_per <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("age17per_est", "age18to64per_est", "age65per_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("age17per_est", "age18to64per_est", "age65per_est"), labels = c("Under 18", "18-64 yrs", "65 and Older"))) %>%
+  na.omit()
+
+blkgrp_age <- merge(blkgrp_age_pop, blkgrp_age_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_age <- 
+  blkgrp_age %>% 
+  group_by(county) %>%
+  ggplot(aes(x = groups, y = percent, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_age, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Age Group") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_age_county, plot_blkgrp_age, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Age", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Jobs - low income employment ----
+county_jobs <- popdat_county %>% 
+  filter(demographic == "jobs") %>% 
+  mutate(percent = (estimate/total_jobs) * 100,
+         groups = factor(variable, levels = c("jobs_lowage_w", "jobs_midwage_w", "jobs_hiwage_w", "jobs_lowage_h", "jobs_midwage_h", "jobs_hiwage_h"), labels = c("Low-wage, Work", "Mid-wage, Work", "High-wage, Work", "Low-wage, Home", "Mid-wage, Home", "High-wage, Home"))) %>% 
+  filter(variable == "jobs_lowage_w" | variable == "jobs_lowage_h")
+
+plot_jobs_county <- county_jobs %>% 
+  ggplot(aes(x = groups, y = percent, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Income Group, Location") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# blockgroup data
+blkgrp_jobs_pop <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("jobs_lowage_w", "jobs_lowage_h"),
+               names_to = "groups",
+               values_to = "jobs") %>%
+  select(c("block_grp", "tract", "county", "groups", "jobs", "jobs_total_w", "jobs_total_h", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("jobs_lowage_w", "jobs_lowage_h"), labels = c("Low-wage, Work", "Low-wage, Home"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+blkgrp_jobs_per <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("percent_lowage_w", "percent_lowage_h"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("percent_lowage_w", "percent_lowage_h"), labels = c("Low-wage, Work", "Low-wage, Home"))) %>%
+  na.omit()
+
+blkgrp_jobs <- merge(blkgrp_jobs_pop, blkgrp_jobs_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_jobs <- 
+  blkgrp_jobs %>% 
+  group_by(county) %>%
+  ggplot(aes(x = groups, y = percent, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_jobs, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Income Group, Location") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_jobs_county, plot_blkgrp_jobs, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Low Income Employment, by Home and Work", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Income ----
+county_income <- popdat_county %>% 
+  filter(demographic == "income") %>% 
+  mutate(groups = factor(variable, levels = c("medhhinc"), labels = c("Median Household Income")))
+
+plot_income_county <- county_income %>% 
+  ggplot(aes(x = county, y = estimate, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100000),
+                     # labels = scales::percent_format(scale = 1),
+                           name = "Median Household Income") +
+  scale_x_discrete(name = "") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# blockgroup data
+blkgrp_income <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("medhhinc_est"),
+               names_to = "groups",
+               values_to = "medhhinc") %>%
+  select(c("block_grp", "tract", "county", "groups", "medhhinc", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("medhhinc_est"), labels = c("Median Household Income"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+blkgrp_income <- blkgrp_income %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_income <- 
+  blkgrp_income %>% 
+  group_by(county) %>%
+  ggplot(aes(x = county, y = medhhinc, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_income, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100000),
+                     # labels = scales::percent_format(scale = 1),
+                           name = "Median Household Income") +
+  scale_x_discrete(name = "") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_income_county, plot_blkgrp_income, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Median Household Income", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By tenure ----
+county_tenure <- popdat_county %>% 
+  filter(demographic == "own_rent") %>% 
+  mutate(percent = (estimate/totalhh) * 100,
+         groups = factor(variable, levels = c("ownhh", "renthh"), labels = c("Owners", "Renters")))
+
+plot_tenure_county <- county_tenure %>% 
+  ggplot(aes(x = groups, y = percent, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Households") +
+  scale_x_discrete(name = "Tenure") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# blockgroup data
+blkgrp_tenure_pop <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("ownhh_est", "renthh_est"),
+               names_to = "groups",
+               values_to = "tenure") %>%
+  select(c("block_grp", "tract", "county", "groups", "tenure", "tothh_est", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("ownhh_est", "renthh_est"), labels = c("Owners", "Renters"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+blkgrp_tenure_per <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("ownhhper_est", "renthhper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("ownhhper_est", "renthhper_est"), labels = c("Owners", "Renters"))) %>%
+  na.omit()
+
+blkgrp_tenure <- merge(blkgrp_tenure_pop, blkgrp_tenure_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_tenure <- 
+  blkgrp_tenure %>% 
+  group_by(county) %>%
+  ggplot(aes(x = groups, y = percent, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_tenure, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Households") +
+  scale_x_discrete(name = "Tenure") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_tenure_county, plot_blkgrp_tenure, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Housing Tenure: Owners & Renters", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By housing value ----
+county_hvalues <- popdat_county %>% 
+  filter(demographic == "housing_value") %>% 
+  mutate(groups = factor(variable, levels = c("medhome"), labels = c("Median Housing Value")))
+
+plot_hvalues_county <- county_hvalues %>% 
+  ggplot(aes(x = county, y = estimate, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 550000),
+                     breaks = c(0, 100000, 200000, 300000, 400000, 500000),
+                     labels = scales::dollar_format(prefix="$"),
+                           name = "Median Housing Value") +
+  scale_x_discrete(name = "") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# blockgroup data
+blkgrp_hvalues <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("medhome_est"),
+               names_to = "groups",
+               values_to = "medhome_est") %>%
+  select(c("block_grp", "tract", "county", "groups", "medhome_est", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("medhome_est"), labels = c("Median Housing Value"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+plot_blkgrp_hvalues <- 
+  blkgrp_hvalues %>% 
+  group_by(county) %>%
+  ggplot(aes(x = county, y = medhome_est, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_hvalues, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 550000),
+                     breaks = c(0, 100000, 200000, 300000, 400000, 500000),
+                     labels = scales::dollar_format(prefix="$"),
+                           name = "Median Housing Value") +
+  scale_x_discrete(name = "") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_hvalues_county, plot_blkgrp_hvalues, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Median Owner-Occupied Housing Values", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By median gross rent ----
+county_rents <- popdat_county %>% 
+  filter(demographic == "rent_cost") %>% 
+  mutate(groups = factor(variable, levels = c("medrent"), labels = c("Median Gross Rent")))
+
+plot_rents_county <- county_rents %>% 
+  ggplot(aes(x = county, y = estimate, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 2000),
+                     labels = scales::dollar_format(prefix="$"),
+                           name = "Median Gross Rent") +
+  scale_x_discrete(name = "") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# blockgroup data
+blkgrp_rents <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("medrent_est"),
+               names_to = "groups",
+               values_to = "medrent_est") %>%
+  select(c("block_grp", "tract", "county", "groups", "medrent_est", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("medrent_est"), labels = c("Median Gross Rent"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+plot_blkgrp_rents <- 
+  blkgrp_rents %>% 
+  group_by(county) %>%
+  ggplot(aes(x = county, y = medrent_est, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_rents, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 2000),
+                     labels = scales::dollar_format(prefix="$"),
+                           name = "Median Gross Rent") +
+  scale_x_discrete(name = "") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_rents_county, plot_blkgrp_rents, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Median Gross Rent", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Online ----
+county_online <- popdat_county %>% 
+  filter(demographic == "online") %>% 
+  mutate(percent = (estimate/totalhh) * 100,
+         groups = factor(variable, levels = c("comp_and_bb", "not_comp_bb"), labels = c("Computer & Broadband", "No Computer & Broadband")))
+
+plot_online_county <- county_online %>% 
+  ggplot(aes(x = groups, y = percent, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Households") +
+  scale_x_discrete(name = "Online Access") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+blkgrp_online <- popdat_blkgrp %>% 
+  mutate(notonlineper_est = 100 - onlineper_est) %>% 
+  pivot_longer(cols = c("onlineper_est", "notonlineper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("onlineper_est", "notonlineper_est"), labels = c("Computer & Broadband", "No Computer & Broadband"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+plot_blkgrp_online <- 
+  blkgrp_online %>% 
+  group_by(county) %>%
+  ggplot(aes(x = groups, y = percent, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_online, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Households") +
+  scale_x_discrete(name = "Online Access") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_online_county, plot_blkgrp_online, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Computer & Broadband Access", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Age of housing ----
+county_hage <- popdat_county %>% 
+  filter(demographic == "housing_age") %>% 
+  mutate(percent = (estimate/totalbldg) * 100,
+         groups = factor(variable, levels = c("bldgpre70", "bldgpost70"), labels = c("Built Pre-1970", "Built Post-1970")))
+
+plot_hage_county <- county_hage %>% 
+  ggplot(aes(x = groups, y = percent, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Buildings") +
+  scale_x_discrete(name = "Building Age") +
+  scale_fill_manual(values = pal) +
+  ggtitle("ESVA Counties") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+blkgrp_hage <- popdat_blkgrp %>% 
+  mutate(bldgagepost70per_est = 100 - bldgage70per_est) %>% 
+  pivot_longer(cols = c("bldgage70per_est", "bldgagepost70per_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("bldgage70per_est", "bldgagepost70per_est"), labels = c("Built Pre-1970", "Built Post-1970"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+plot_blkgrp_hage <- 
+  blkgrp_hage %>% 
+  group_by(county) %>%
+  ggplot(aes(x = groups, y = percent, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_hage, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Buildings") +
+  scale_x_discrete(name = "Building Age") +
+  scale_color_manual(values = pal) +
+  ggtitle("ESVA Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+annotate_figure(
+  ggarrange(plot_hage_county, plot_blkgrp_hage, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Age of Houseing: Built Before and After 1970", face = "bold", size = 16)
+)
+
+```

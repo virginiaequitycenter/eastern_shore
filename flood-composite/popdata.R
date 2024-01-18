@@ -82,6 +82,8 @@ race <- blkgrp_white %>%
 rm(blkgrp_race, blkgrp_white, blkgrp_black, blkgrp_ltnx, blkgrp_remain)
 
 #### age ----
+# v22 <- load_variables(year = 2022, dataset = "acs5", cache = TRUE)
+
 blkgrp_age <- get_acs(geography = "block group", 
                       table = "B01001", 
                       state = "VA", 
@@ -111,10 +113,26 @@ blkgrp_age65 <- blkgrp_age %>%
          age65per_moe = round((moe_prop(age65pop_est, totpop_est, age65pop_moe, totpop_moe))*100, 2))  %>% 
   select(-c(totpop_est, totpop_moe))
 
-age <- blkgrp_age17 %>% 
-  left_join(blkgrp_age65) 
+blkgrp_age18to64 <- blkgrp_age %>% 
+  filter(variable %in% c("B01001_007", "B01001_008", "B01001_009", "B01001_010", "B01001_011", 
+                         "B01001_012", "B01001_013", "B01001_014", "B01001_015", "B01001_016", 
+                         "B01001_017", "B01001_018", "B01001_019",
+                         "B01001_031", "B01001_032", "B01001_033", "B01001_034", "B01001_035", 
+                         "B01001_036", "B01001_037", "B01001_038", "B01001_039", "B01001_040",
+                         "B01001_041", "B01001_042","B01001_043")) %>% 
+  group_by(GEOID, NAME) %>% 
+  summarize(age18to64pop_est = sum(estimate),
+            age18to64pop_moe = moe_sum(moe = moe, estimate = estimate)) %>% 
+  left_join(blkgrp_tot) %>% 
+  mutate(age18to64per_est = round((age18to64pop_est/totpop_est)*100, 2),
+         age18to64per_moe = round((moe_prop(age18to64pop_est, totpop_est, age18to64pop_moe, totpop_moe))*100, 2))  %>% 
+  select(-c(totpop_est, totpop_moe))
 
-rm(blkgrp_age, blkgrp_age17, blkgrp_age65, blkgrp_tot)
+age <- blkgrp_age17 %>% 
+  left_join(blkgrp_age65) %>% 
+  left_join(blkgrp_age18to64) 
+
+rm(blkgrp_age, blkgrp_age17, blkgrp_age65, blkgrp_tot, blkgrp_age18to64)
 
 #### tenure ----
 blkgrp_ten <- get_acs(geography = "block group", 
@@ -443,7 +461,7 @@ work_county <- grab_lodes(state = "va",
          total_jobs = C000, jobs_lowage_w = CE01, jobs_midwage_w = CE02, jobs_hiwage_w = CE03) %>% 
   pivot_longer(jobs_lowage_w:jobs_hiwage_w, names_to = "variable", values_to = "estimate") %>% 
   mutate(demographic = "jobs",
-         NAME = ifelse(GEOID == "51003", "Accomack County, Virginia", "Northampton County, Virginia"))
+         NAME = ifelse(GEOID == "51001", "Accomack County, Virginia", "Northampton County, Virginia"))
 
 home_county <- grab_lodes(state = "va", 
                       year = 2020, 
@@ -459,7 +477,7 @@ home_county <- grab_lodes(state = "va",
          total_jobs = C000, jobs_lowage_h = CE01, jobs_midwage_h = CE02, jobs_hiwage_h = CE03) %>% 
   pivot_longer(jobs_lowage_h:jobs_hiwage_h, names_to = "variable", values_to = "estimate") %>% 
   mutate(demographic = "jobs",
-         NAME = ifelse(GEOID == "51003", "Accomack County, Virginia", "Northampton County, Virginia"))
+         NAME = ifelse(GEOID == "51001", "Accomack County, Virginia", "Northampton County, Virginia"))
 
 
 ## Join ACS and LODES ----
