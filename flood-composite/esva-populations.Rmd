@@ -233,7 +233,7 @@ plot_income_county <- county_income %>%
   ggplot(aes(x = county, y = estimate, fill = county)) +
   geom_bar(stat = "identity", position='dodge') +
   scale_y_continuous(limits = c(0, 100000),
-                     # labels = scales::percent_format(scale = 1),
+                     labels = scales::dollar_format(prefix="$"),
                            name = "Median Household Income") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
@@ -261,7 +261,7 @@ plot_blkgrp_income <-
   geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
   geom_point(data = county_income, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
   scale_y_continuous(limits = c(0, 100000),
-                     # labels = scales::percent_format(scale = 1),
+                     labels = scales::dollar_format(prefix="$"),
                            name = "Median Household Income") +
   scale_x_discrete(name = "") +
   scale_color_manual(values = pal) +
