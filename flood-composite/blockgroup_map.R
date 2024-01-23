@@ -47,3 +47,14 @@ ggplot(es_blkgrp) +
 # this might help?
 # https://yutannihilation.github.io/ggsflabel/index.html
 
+## Composite ----
+ggplot(es_blkgrp) +
+  geom_sf(aes(fill = mean_HazardNumber), color = "white") +
+  scale_fill_gradient(low = "grey", high = "darkblue", 
+                      name = "Average\nFlood\nHazard\nCompsite") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# ggsave("blockgroup_composite_map.png")
