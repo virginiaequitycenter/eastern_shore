@@ -32,79 +32,9 @@ north_pal <- "#ff9793"
 pal <- c("#3aadfc", "#e74b77")
 
 ```
-
+<br />
+<br />
 <!-- # When it floods, who are you worried about? -->
-
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
-# By Race/Ethinicty ----
-county_race <- popdat_county %>% 
-  filter(demographic == "race") %>% 
-  mutate(percent = (estimate/totalpop) * 100,
-         groups = factor(variable, levels = c("whitepop", "blackpop", "ltnxpop", "remainpop"), labels = c("White", "Black", "Hispanic", "All Remaining Groups")))
-
-plot_race_county <- county_race %>% 
-  ggplot(aes(x = groups, y = percent, fill = county)) +
-  geom_bar(stat = "identity", position='dodge') +
-  scale_y_continuous(limits = c(0, 100),
-                     labels = scales::percent_format(scale = 1),
-                           name = "Percent of Population") +
-  scale_x_discrete(name = "",
-                   labels = function(groups) str_wrap(groups, width = 10)) +
-  scale_fill_manual(values = pal) +
-  ggtitle("By County") +
-  theme_minimal() +
-  theme(legend.title=element_blank(),
-        legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
-
-# Blockgroup data
-blkgrp_race_pop <- popdat_blkgrp %>% 
-  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
-               names_to = "groups",
-               values_to = "pop") %>%
-  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
-  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
-  filter(totpop_est != 0) %>% 
-  na.omit()
-
-blkgrp_race_per <- popdat_blkgrp %>% 
-  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
-               names_to = "groups",
-               values_to = "percent") %>%
-  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
-  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
-  na.omit()
-
-blkgrp_race <- merge(blkgrp_race_pop, blkgrp_race_per) %>%
-  mutate(type = "Block Group")
-
-plot_blkgrp_race <- 
-  blkgrp_race %>% 
-  group_by(county) %>%
-  ggplot(aes(x = groups, y = percent, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_race, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
-  scale_y_continuous(limits = c(0, 100),
-                     labels = scales::percent_format(scale = 1),
-                           name = "Percent of Population") +
-  scale_x_discrete(name = "",
-                   labels = function(groups) str_wrap(groups, width = 10)) +
-  scale_color_manual(values = pal) +
-  ggtitle("By Block Group") +
-  theme_minimal() +
-  theme(legend.title=element_blank(),
-        legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
-
-
-annotate_figure(
-  ggarrange(plot_race_county, plot_blkgrp_race, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Percent of Residents Who Identify as White, Black and Hispanic", face = "bold", size = 16)
-)
-
-
-```
-
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
 # By Age ----
 county_age <- popdat_county %>% 
@@ -224,6 +154,77 @@ annotate_figure(
 )
 
 ```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Race/Ethinicty ----
+county_race <- popdat_county %>% 
+  filter(demographic == "race") %>% 
+  mutate(percent = (estimate/totalpop) * 100,
+         groups = factor(variable, levels = c("whitepop", "blackpop", "ltnxpop", "remainpop"), labels = c("White", "Black", "Hispanic", "All Remaining Groups")))
+
+plot_race_county <- county_race %>% 
+  ggplot(aes(x = groups, y = percent, fill = county)) +
+  geom_bar(stat = "identity", position='dodge') +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  scale_fill_manual(values = pal) +
+  ggtitle("By County") +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
+
+# Blockgroup data
+blkgrp_race_pop <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+blkgrp_race_per <- popdat_blkgrp %>% 
+  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  na.omit()
+
+blkgrp_race <- merge(blkgrp_race_pop, blkgrp_race_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_race <- 
+  blkgrp_race %>% 
+  group_by(county) %>%
+  ggplot(aes(x = groups, y = percent, color = county)) +
+  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_race, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  scale_color_manual(values = pal) +
+  ggtitle("By Block Group") +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
+
+
+annotate_figure(
+  ggarrange(plot_race_county, plot_blkgrp_race, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Percent of Residents Who Identify as White, Black and Hispanic", face = "bold", size = 16)
+)
+
+
+```
+
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
 # By Jobs - low income employment ----
