@@ -1,6 +1,6 @@
 ---
-title: "ESVA Population Data"
-date: "2024-01-18"
+title: "When it floods, who are you worried about?"
+# date: "2024-01-18"
 output: html_document
 ---
 
@@ -13,6 +13,7 @@ library(tidycensus)
 library(lehdr)
 library(ggpubr)
 library(stringr)
+library(patchwork)
 
 ## Bring in block group and county data ----
 popdat_blkgrp <- read_csv("population_blkgrp.csv")
@@ -32,7 +33,7 @@ pal <- c("#3aadfc", "#e74b77")
 
 ```
 
-# Demographics on the Eastern Shore of Virgina
+<!-- # When it floods, who are you worried about? -->
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
 # By Race/Ethinicty ----
@@ -47,11 +48,14 @@ plot_race_county <- county_race %>%
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
-  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 # Blockgroup data
 blkgrp_race_pop <- popdat_blkgrp %>% 
@@ -83,16 +87,19 @@ plot_blkgrp_race <-
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
-  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 
 annotate_figure(
   ggarrange(plot_race_county, plot_blkgrp_race, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Race and Ethnicity", face = "bold", size = 16)
+  top = text_grob("Percent of Residents Who Identify as White, Black and Hispanic", face = "bold", size = 16)
 )
 
 
@@ -111,11 +118,31 @@ plot_age_county <- county_age %>%
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
-  scale_x_discrete(name = "Age Group") +
+  scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
+  annotate(
+    'text',
+    x = 3.1,
+    y = 55,
+    label = '25% of Accomack \nCounty is over \n65 years old',
+    fontface = 'bold', 
+    size = 4
+  ) +
+  annotate(
+    'curve',
+    x = 2.7, 
+    y = 50,
+    yend = 25,
+    xend = 2.7,
+    linewidth = 1,
+    curvature = 0.4,
+    arrow = arrow(length = unit(0.5, 'cm'))
+  ) +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 # blockgroup data
 blkgrp_age_pop <- popdat_blkgrp %>% 
@@ -147,15 +174,53 @@ plot_blkgrp_age <-
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
-  scale_x_discrete(name = "Age Group") +
+  scale_x_discrete(name = "") +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
+  annotate(
+    'text',
+    x = 2,
+    y = 17,
+    label = 'Other block groups in \nAccomack County have \nvery few residents \nover 65 years old',
+    fontface = 'bold', 
+    size = 4
+  ) +
+  annotate(
+    'curve',
+    x = 2, 
+    y = 3.6,
+    yend = 1,
+    xend = 2.7,
+    linewidth = 1,
+    curvature = 0.2,
+    arrow = arrow(length = unit(0.5, 'cm'))
+  ) +
+  annotate(
+    'text',
+    x = 2.9,
+    y = 82,
+    label = 'About half the residents \nin some block groups \nin Accomack County \nare ages 65 and older',
+    fontface = 'bold', 
+    size = 4
+  ) +
+  annotate(
+    'curve',
+    x = 2.55, # Play around with the coordinates until you're satisfied
+    y = 68,
+    yend = 50,
+    xend = 2.7,
+    linewidth = 1,
+    curvature = 0.4,
+    arrow = arrow(length = unit(0.5, 'cm'))
+  ) +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_age_county, plot_blkgrp_age, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Age", face = "bold", size = 16)
+  top = text_grob("Percent of Residents Who are Under 18, 18-64 years old, and 65 and Older", face = "bold", size = 16)
 )
 
 ```
@@ -165,7 +230,7 @@ annotate_figure(
 county_jobs <- popdat_county %>% 
   filter(demographic == "jobs") %>% 
   mutate(percent = (estimate/total_jobs) * 100,
-         groups = factor(variable, levels = c("jobs_lowage_w", "jobs_midwage_w", "jobs_hiwage_w", "jobs_lowage_h", "jobs_midwage_h", "jobs_hiwage_h"), labels = c("Low-wage, Work", "Mid-wage, Work", "High-wage, Work", "Low-wage, Home", "Mid-wage, Home", "High-wage, Home"))) %>% 
+         groups = factor(variable, levels = c("jobs_lowage_w", "jobs_midwage_w", "jobs_hiwage_w", "jobs_lowage_h", "jobs_midwage_h", "jobs_hiwage_h"), labels = c("Location of Job for Low-wage Workers", "Mid-wage, Work", "High-wage, Work", "Location of Home for Low-wage Workers", "Mid-wage, Home", "High-wage, Home"))) %>% 
   filter(variable == "jobs_lowage_w" | variable == "jobs_lowage_h")
 
 plot_jobs_county <- county_jobs %>% 
@@ -174,11 +239,14 @@ plot_jobs_county <- county_jobs %>%
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
-  scale_x_discrete(name = "Income Group, Location") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 20)) +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 # blockgroup data
 blkgrp_jobs_pop <- popdat_blkgrp %>% 
@@ -186,7 +254,7 @@ blkgrp_jobs_pop <- popdat_blkgrp %>%
                names_to = "groups",
                values_to = "jobs") %>%
   select(c("block_grp", "tract", "county", "groups", "jobs", "jobs_total_w", "jobs_total_h", "totpop_est")) %>%
-  mutate(groups = factor(groups, levels = c("jobs_lowage_w", "jobs_lowage_h"), labels = c("Low-wage, Work", "Low-wage, Home"))) %>%
+  mutate(groups = factor(groups, levels = c("jobs_lowage_w", "jobs_lowage_h"), labels = c("Location of Job for Low-wage Workers", "Location of Home for Low-wage Workers"))) %>%
   filter(totpop_est != 0) %>% 
   na.omit()
 
@@ -195,7 +263,7 @@ blkgrp_jobs_per <- popdat_blkgrp %>%
                names_to = "groups",
                values_to = "percent") %>%
   select(c("block_grp", "tract", "county", "groups", "percent")) %>%
-  mutate(groups = factor(groups, levels = c("percent_lowage_w", "percent_lowage_h"), labels = c("Low-wage, Work", "Low-wage, Home"))) %>%
+  mutate(groups = factor(groups, levels = c("percent_lowage_w", "percent_lowage_h"), labels = c("Location of Job for Low-wage Workers", "Location of Home for Low-wage Workers"))) %>%
   na.omit()
 
 blkgrp_jobs <- merge(blkgrp_jobs_pop, blkgrp_jobs_per) %>%
@@ -210,16 +278,27 @@ plot_blkgrp_jobs <-
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
-  scale_x_discrete(name = "Income Group, Location") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 20)) +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_jobs_county, plot_blkgrp_jobs, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Low Income Employment, by Home and Work", face = "bold", size = 16)
+  top = text_grob("Percent of Workers in Jobs Paying Less Than $15,000/year, \n by Where They Work and Where They Live", face = "bold", size = 16)
 )
+
+# ggarrange(plot_jobs_county, plot_blkgrp_jobs, ncol = 2, nrow = 1, common.legend = TRUE) +
+#   plot_annotation(
+#   title = "Percent of Workers in Jobs Paying Less Than $15,000/year, by Where They Work and Where They Live",
+#   theme = theme(
+#     plot.title = element_text(hjust = 0.5, face = "bold", size = 16)
+#   )
+# )
 
 ```
 
@@ -237,9 +316,11 @@ plot_income_county <- county_income %>%
                            name = "Median Household Income") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 # blockgroup data
 blkgrp_income <- popdat_blkgrp %>% 
@@ -265,13 +346,15 @@ plot_blkgrp_income <-
                            name = "Median Household Income") +
   scale_x_discrete(name = "") +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_income_county, plot_blkgrp_income, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Median Household Income", face = "bold", size = 16)
+  top = text_grob("Median Household Income \n(Half of Households Make More, Half of Households Make Less)", face = "bold", size = 16)
 )
 
 ```
@@ -289,11 +372,13 @@ plot_tenure_county <- county_tenure %>%
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Households") +
-  scale_x_discrete(name = "Tenure") +
+  scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 # blockgroup data
 blkgrp_tenure_pop <- popdat_blkgrp %>% 
@@ -325,15 +410,17 @@ plot_blkgrp_tenure <-
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Households") +
-  scale_x_discrete(name = "Tenure") +
+  scale_x_discrete(name = "") +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_tenure_county, plot_blkgrp_tenure, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Housing Tenure: Owners & Renters", face = "bold", size = 16)
+  top = text_grob("Percent of Homes Owned and Rented", face = "bold", size = 16)
 )
 
 ```
@@ -353,9 +440,11 @@ plot_hvalues_county <- county_hvalues %>%
                            name = "Median Housing Value") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 # blockgroup data
 blkgrp_hvalues <- popdat_blkgrp %>% 
@@ -379,13 +468,15 @@ plot_blkgrp_hvalues <-
                            name = "Median Housing Value") +
   scale_x_discrete(name = "") +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_hvalues_county, plot_blkgrp_hvalues, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Median Owner-Occupied Housing Values", face = "bold", size = 16)
+  top = text_grob("Median Value of Homes Lived in by Owners", face = "bold", size = 16)
 )
 
 ```
@@ -401,12 +492,14 @@ plot_rents_county <- county_rents %>%
   geom_bar(stat = "identity", position='dodge') +
   scale_y_continuous(limits = c(0, 2000),
                      labels = scales::dollar_format(prefix="$"),
-                           name = "Median Gross Rent") +
+                           name = "Median Rent") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 # blockgroup data
 blkgrp_rents <- popdat_blkgrp %>% 
@@ -426,16 +519,18 @@ plot_blkgrp_rents <-
   geom_point(data = county_rents, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
   scale_y_continuous(limits = c(0, 2000),
                      labels = scales::dollar_format(prefix="$"),
-                           name = "Median Gross Rent") +
+                           name = "Median Rent") +
   scale_x_discrete(name = "") +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_rents_county, plot_blkgrp_rents, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Median Gross Rent", face = "bold", size = 16)
+  top = text_grob("Median Rent Paid by Renters", face = "bold", size = 16)
 )
 
 ```
@@ -453,11 +548,14 @@ plot_online_county <- county_online %>%
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Households") +
-  scale_x_discrete(name = "Online Access") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 blkgrp_online <- popdat_blkgrp %>% 
   mutate(notonlineper_est = 100 - onlineper_est) %>% 
@@ -478,15 +576,18 @@ plot_blkgrp_online <-
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Households") +
-  scale_x_discrete(name = "Online Access") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_online_county, plot_blkgrp_online, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Computer & Broadband Access", face = "bold", size = 16)
+  top = text_grob("Percent of Residents with Both a Computer and Broadband Internet at Home", face = "bold", size = 16)
 )
 
 ```
@@ -496,19 +597,21 @@ annotate_figure(
 county_hage <- popdat_county %>% 
   filter(demographic == "housing_age") %>% 
   mutate(percent = (estimate/totalbldg) * 100,
-         groups = factor(variable, levels = c("bldgpre70", "bldgpost70"), labels = c("Built Pre-1970", "Built Post-1970")))
+         groups = factor(variable, levels = c("bldgpre70", "bldgpost70"), labels = c("Built Before 1970", "Built After 1970")))
 
 plot_hage_county <- county_hage %>% 
   ggplot(aes(x = groups, y = percent, fill = county)) +
   geom_bar(stat = "identity", position='dodge') +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
-                           name = "Percent of Buildings") +
-  scale_x_discrete(name = "Building Age") +
+                           name = "Percent of Housing Units") +
+  scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  ggtitle("ESVA Counties") +
+  ggtitle("By County") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 blkgrp_hage <- popdat_blkgrp %>% 
   mutate(bldgagepost70per_est = 100 - bldgage70per_est) %>% 
@@ -516,7 +619,7 @@ blkgrp_hage <- popdat_blkgrp %>%
                names_to = "groups",
                values_to = "percent") %>%
   select(c("block_grp", "tract", "county", "groups", "percent", "totpop_est")) %>%
-  mutate(groups = factor(groups, levels = c("bldgage70per_est", "bldgagepost70per_est"), labels = c("Built Pre-1970", "Built Post-1970"))) %>%
+  mutate(groups = factor(groups, levels = c("bldgage70per_est", "bldgagepost70per_est"), labels = c("Built Before 1970", "Built After 1970"))) %>%
   filter(totpop_est != 0) %>% 
   na.omit()
 
@@ -528,16 +631,18 @@ plot_blkgrp_hage <-
   geom_point(data = county_hage, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
-                           name = "Percent of Buildings") +
-  scale_x_discrete(name = "Building Age") +
+                           name = "Percent of Housing Units") +
+  scale_x_discrete(name = "") +
   scale_color_manual(values = pal) +
-  ggtitle("ESVA Block Groups") +
+  ggtitle("By Block Group") +
   theme_minimal() +
-  theme(legend.title=element_blank())
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 12))
 
 annotate_figure(
   ggarrange(plot_hage_county, plot_blkgrp_hage, ncol = 2, nrow = 1, common.legend = TRUE),
-  top = text_grob("Age of Housing: Built Before and After 1970", face = "bold", size = 16)
+  top = text_grob("Percent of Housing Units Built Before and After 1970", face = "bold", size = 16)
 )
 
 ```
