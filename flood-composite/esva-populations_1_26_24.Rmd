@@ -1,5 +1,5 @@
 ---
-title: "What topics do you want the Climate Equity Atlas to include?"
+title: "When it floods, who are you worried about?"
 # date: "2024-01-18"
 output: html_document
 ---
@@ -50,25 +50,25 @@ plot_age_county <- county_age %>%
                            name = "Percent of Population") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
-  # annotate(
-  #   'text',
-  #   x = 3.1,
-  #   y = 55,
-  #   label = '25% of Accomack \nCounty is over \n65 years old',
-  #   fontface = 'bold', 
-  #   size = 4
-  # ) +
-  # annotate(
-  #   'curve',
-  #   x = 2.7, 
-  #   y = 50,
-  #   yend = 25,
-  #   xend = 2.7,
-  #   linewidth = 1,
-  #   curvature = 0.4,
-  #   arrow = arrow(length = unit(0.5, 'cm'))
-  # ) +
+  ggtitle("By County") +
+  annotate(
+    'text',
+    x = 3.1,
+    y = 55,
+    label = '25% of Accomack \nCounty is over \n65 years old',
+    fontface = 'bold', 
+    size = 4
+  ) +
+  annotate(
+    'curve',
+    x = 2.7, 
+    y = 50,
+    yend = 25,
+    xend = 2.7,
+    linewidth = 1,
+    curvature = 0.4,
+    arrow = arrow(length = unit(0.5, 'cm'))
+  ) +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -149,8 +149,8 @@ plot_blkgrp_age <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_age_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Residents Who are Under 18, 18-64 years old, and 65 and Older", face = "bold", size = 16)
+  ggarrange(plot_age_county, plot_blkgrp_age, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Percent of Residents Who are Under 18, 18-64 years old, and 65 and Older", face = "bold", size = 16)
 )
 
 ```
@@ -171,7 +171,7 @@ plot_race_county <- county_race %>%
   scale_x_discrete(name = "",
                    labels = function(groups) str_wrap(groups, width = 10)) +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -218,8 +218,8 @@ plot_blkgrp_race <-
 
 
 annotate_figure(
-  ggarrange(plot_race_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Residents Who Identify as White, Black and Hispanic", face = "bold", size = 16)
+  ggarrange(plot_race_county, plot_blkgrp_race, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Percent of Residents Who Identify as White, Black and Hispanic", face = "bold", size = 16)
 )
 
 
@@ -243,7 +243,7 @@ plot_jobs_county <- county_jobs %>%
   scale_x_discrete(name = "",
                    labels = function(groups) str_wrap(groups, width = 20)) +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -289,8 +289,8 @@ plot_blkgrp_jobs <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_jobs_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Workers in Jobs Paying Less Than $15,000/year, \n by Where They Work and Where They Live", face = "bold", size = 16)
+  ggarrange(plot_jobs_county, plot_blkgrp_jobs, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Percent of Workers in Jobs Paying Less Than $15,000/year, \n by Where They Work and Where They Live", face = "bold", size = 16)
 )
 
 # ggarrange(plot_jobs_county, plot_blkgrp_jobs, ncol = 2, nrow = 1, common.legend = TRUE) +
@@ -317,7 +317,7 @@ plot_income_county <- county_income %>%
                            name = "Median Household Income") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -354,7 +354,7 @@ plot_blkgrp_income <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_income_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_income_county, plot_blkgrp_income, ncol = 2, nrow = 1, common.legend = TRUE),
   top = text_grob("Median Household Income \n(Half of Households Make More, Half of Households Make Less)", face = "bold", size = 16)
 )
 
@@ -375,7 +375,7 @@ plot_tenure_county <- county_tenure %>%
                            name = "Percent of Households") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -420,8 +420,8 @@ plot_blkgrp_tenure <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_tenure_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Homes Owned and Rented", face = "bold", size = 16)
+  ggarrange(plot_tenure_county, plot_blkgrp_tenure, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Percent of Homes Owned and Rented", face = "bold", size = 16)
 )
 
 ```
@@ -441,7 +441,7 @@ plot_hvalues_county <- county_hvalues %>%
                            name = "Median Housing Value") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -476,7 +476,7 @@ plot_blkgrp_hvalues <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_hvalues_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_hvalues_county, plot_blkgrp_hvalues, ncol = 2, nrow = 1, common.legend = TRUE),
   top = text_grob("Median Value of Homes Lived in by Owners", face = "bold", size = 16)
 )
 
@@ -496,7 +496,7 @@ plot_rents_county <- county_rents %>%
                            name = "Median Rent") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -530,7 +530,7 @@ plot_blkgrp_rents <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_rents_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_rents_county, plot_blkgrp_rents, ncol = 2, nrow = 1, common.legend = TRUE),
   top = text_grob("Median Rent Paid by Renters", face = "bold", size = 16)
 )
 
@@ -552,7 +552,7 @@ plot_online_county <- county_online %>%
   scale_x_discrete(name = "",
                    labels = function(groups) str_wrap(groups, width = 10)) +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -587,8 +587,8 @@ plot_blkgrp_online <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_online_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Residents with Both a Computer and Broadband Internet at Home", face = "bold", size = 16)
+  ggarrange(plot_online_county, plot_blkgrp_online, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Percent of Residents with Both a Computer and Broadband Internet at Home", face = "bold", size = 16)
 )
 
 ```
@@ -608,7 +608,7 @@ plot_hage_county <- county_hage %>%
                            name = "Percent of Housing Units") +
   scale_x_discrete(name = "") +
   scale_fill_manual(values = pal) +
-  # ggtitle("By County") +
+  ggtitle("By County") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
@@ -642,8 +642,8 @@ plot_blkgrp_hage <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_hage_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Housing Units Built Before and After 1970", face = "bold", size = 16)
+  ggarrange(plot_hage_county, plot_blkgrp_hage, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Percent of Housing Units Built Before and After 1970", face = "bold", size = 16)
 )
 
 ```
