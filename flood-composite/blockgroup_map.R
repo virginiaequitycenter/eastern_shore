@@ -2,10 +2,11 @@
 library(tidyverse)
 library(readxl)
 library(sf)
+library(ggrepel)
 
 # Data ----
 es_blkgrp <- readRDS("flood_composite_blkgrp.RDS")
-blkgrp_names <- read_excel("tract_names.xlsx", sheet = "blkgrp2020")
+blkgrp_names <- read_excel("../eastern_shore/flood-composite/tract_names.xlsx", sheet = "blkgrp2020")
 
 
 # Prep ----
@@ -47,6 +48,53 @@ ggplot(es_blkgrp) +
 # this might help?
 # https://yutannihilation.github.io/ggsflabel/index.html
 
+## Jacob's revisions ----
+set.seed(999)
+
+# Pull out centroids to repel away from
+centroids <- sf::st_centroid(es_blkgrp)
+
+xs <- lapply(centroids$geometry, function(x) x[1]) |> unlist()
+ys <- lapply(centroids$geometry, function(x) x[2]) |> unlist()
+
+ggplot(es_blkgrp) +
+  geom_sf(color = "white", fill = "grey85", linewidth = 1) +
+  ggrepel::geom_text_repel(aes(x = xs, y = ys, label = names_multilines), 
+                           size = 2,
+                           min.segment.length = 0,
+                           max.overlaps = Inf,
+                           segment.alpha = .30
+  ) +
+  theme_void()
+
+# ggsave("blkgrp_names.png")
+
+## alternatives
+## only some lines
+# ggplot(es_blkgrp) +
+#   geom_sf(color = "white", fill = "grey85", linewidth = 1) +
+#   ggrepel::geom_text_repel(aes(x = xs, y = ys, label = names_multilines), 
+#                            size = 2,
+#                            min.segment.length = .20,
+#                            max.overlaps = Inf,
+#                            segment.alpha = .30
+#   ) +
+#   theme_void()
+# 
+# ## more repulsion, longer lines
+# ggplot(es_blkgrp) +
+#   geom_sf(color = "white", fill = "grey85", linewidth = 1) +
+#   ggrepel::geom_text_repel(aes(x = xs, y = ys, label = names_multilines), 
+#                            size = 2,
+#                            min.segment.length = 0,
+#                            max.overlaps = Inf,
+#                            segment.alpha = .30,
+#                            box.padding = 0.40,
+#                            max.iter = 50000, max.time = 5
+#   ) +
+#   theme_void()
+
+
 ## Composite ----
 ggplot(es_blkgrp) +
   geom_sf(aes(fill = mean_HazardNumber), color = "white") +
@@ -58,3 +106,4 @@ ggplot(es_blkgrp) +
         legend.position = c(.8, .4))
 
 # ggsave("blockgroup_composite_map.png")
+
