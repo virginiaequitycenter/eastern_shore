@@ -6,8 +6,8 @@ library(patchwork)
 
 # Data ----
 es_blkgrp <- readRDS("flood_composite_blkgrp.RDS")
-blkgrp_names <- read_excel("../eastern_shore/tracts/tract_names.xlsx", sheet = "blkgrp2020")
-pop <- read_csv("../eastern_shore/flood-composite/population_blkgrp.csv")
+blkgrp_names <- read_excel("tract_names.xlsx", sheet = "blkgrp2020")
+pop <- read_csv("population_blkgrp.csv")
 
 
 # Prep ----
@@ -68,7 +68,7 @@ pop_med %>%
   theme(legend.position = "none",
         axis.title = element_text(size = 8))
 
-ggsave("corr_jobs_average.png")
+# ggsave("corr_jobs_average.png")
 
 # grouped scatterplot
 # set.seed(1017)
@@ -100,19 +100,19 @@ es_blkgrp_pop %>%
   theme(legend.position = "none", 
         axis.title = element_text(size = 8))
 
-ggsave("corr_jobs_annotated.png")
+# ggsave("corr_jobs_annotated.png")
 
 ### Jobs paying less than 15K ----
 ggplot(es_blkgrp_pop) +
   geom_sf(aes(fill = percent_lowage_w), color = "white") +
-  scale_fill_gradient(low = "grey", high = "darkblue", 
+  scale_fill_gradient(low = "grey", high = "darkgreen", 
                       name = "Percent\nof Workers\nin Low-wage\nJobs") +
   theme_void() +
   theme(legend.title = element_text(size = 6),
         legend.text = element_text(size = 5),
         legend.position = c(.8, .4))
 
-ggsave("blockgroup_map_jobs.png")
+# ggsave("blockgroup_map_jobs.png")
 
 ## Everything ----
 
