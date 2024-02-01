@@ -35,7 +35,7 @@ pal <- c("#3aadfc", "#e74b77")
 <br />
 <br />
 <!-- # When it floods, who are you worried about? -->
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 9, fig.height=8}
 # By Age ----
 county_age <- popdat_county %>% 
   filter(demographic == "age") %>% 
@@ -98,64 +98,69 @@ blkgrp_age <- merge(blkgrp_age_pop, blkgrp_age_per) %>%
 plot_blkgrp_age <- 
   blkgrp_age %>% 
   group_by(county) %>%
-  ggplot(aes(x = groups, y = percent, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_age, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  ggplot(aes(x = county, y = percent, color = county)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(preserve = "single")) +
+  geom_point(data = county_age, aes(x = county, y = percent, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(preserve = "single")) +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
-  scale_x_discrete(name = "") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
   ggtitle("By Block Group") +
-  annotate(
-    'text',
-    x = 2,
-    y = 17,
-    label = 'Other block groups in \nAccomack County have \nvery few residents \nover 65 years old',
-    fontface = 'bold', 
-    size = 4
-  ) +
-  annotate(
-    'curve',
-    x = 2, 
-    y = 3.6,
-    yend = 1,
-    xend = 2.7,
-    linewidth = 1,
-    curvature = 0.2,
-    arrow = arrow(length = unit(0.5, 'cm'))
-  ) +
-  annotate(
-    'text',
-    x = 2.9,
-    y = 82,
-    label = 'About half the residents \nin some block groups \nin Accomack County \nare ages 65 and older',
-    fontface = 'bold', 
-    size = 4
-  ) +
-  annotate(
-    'curve',
-    x = 2.55, # Play around with the coordinates until you're satisfied
-    y = 68,
-    yend = 50,
-    xend = 2.7,
-    linewidth = 1,
-    curvature = 0.4,
-    arrow = arrow(length = unit(0.5, 'cm'))
-  ) +
+  # annotate(
+  #   'text',
+  #   x = 2,
+  #   y = 17,
+  #   label = 'Other block groups in \nAccomack County have \nvery few residents \nover 65 years old',
+  #   fontface = 'bold', 
+  #   size = 4
+  # ) +
+  # annotate(
+  #   'curve',
+  #   x = 2, 
+  #   y = 3.6,
+  #   yend = 1,
+  #   xend = 2.7,
+  #   linewidth = 1,
+  #   curvature = 0.2,
+  #   arrow = arrow(length = unit(0.5, 'cm'))
+  # ) +
+  # annotate(
+  #   'text',
+  #   x = 2.9,
+  #   y = 82,
+  #   label = 'About half the residents \nin some block groups \nin Accomack County \nare ages 65 and older',
+  #   fontface = 'bold', 
+  #   size = 4
+  # ) +
+  # annotate(
+  #   'curve',
+  #   x = 2.55, # Play around with the coordinates until you're satisfied
+  #   y = 68,
+  #   yend = 50,
+  #   xend = 2.7,
+  #   linewidth = 1,
+  #   curvature = 0.4,
+  #   arrow = arrow(length = unit(0.5, 'cm'))
+  # ) +
+  facet_grid(~groups, switch = "x", scales = "free_x", space = "free_x") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
 
 annotate_figure(
-  ggarrange(plot_age_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_blkgrp_age, ncol = 1, nrow = 1, common.legend = TRUE),
   top = text_grob("Residents Who are Under 18, 18-64 years old, and 65 and Older", face = "bold", size = 16)
 )
 
 ```
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 9, fig.height=8}
 # By Race/Ethinicty ----
 county_race <- popdat_county %>% 
   filter(demographic == "race") %>% 
@@ -201,9 +206,9 @@ blkgrp_race <- merge(blkgrp_race_pop, blkgrp_race_per) %>%
 plot_blkgrp_race <- 
   blkgrp_race %>% 
   group_by(county) %>%
-  ggplot(aes(x = groups, y = percent, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_race, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  ggplot(aes(x = county, y = percent, color = county)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(preserve = "single")) +
+  geom_point(data = county_race, aes(x = county, y = percent, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(preserve = "single")) +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
@@ -211,14 +216,18 @@ plot_blkgrp_race <-
                    labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
   ggtitle("By Block Group") +
+  facet_grid(~groups, switch = "x", scales = "free_x", space = "free_x") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
 
 
 annotate_figure(
-  ggarrange(plot_race_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_blkgrp_race, ncol = 1, nrow = 1, common.legend = TRUE),
   top = text_grob("Residents Who Identify as White, Black and Hispanic", face = "bold", size = 16)
 )
 
@@ -226,12 +235,12 @@ annotate_figure(
 ```
 
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 7, fig.height=8}
 # By Jobs - low income employment ----
 county_jobs <- popdat_county %>% 
   filter(demographic == "jobs") %>% 
   mutate(percent = (estimate/total_jobs) * 100,
-         groups = factor(variable, levels = c("jobs_lowage_w", "jobs_midwage_w", "jobs_hiwage_w", "jobs_lowage_h", "jobs_midwage_h", "jobs_hiwage_h"), labels = c("Location of Job for Low-wage Workers", "Mid-wage, Work", "High-wage, Work", "Location of Home for Low-wage Workers", "Mid-wage, Home", "High-wage, Home"))) %>% 
+         groups = factor(variable, levels = c("jobs_lowage_w", "jobs_midwage_w", "jobs_hiwage_w", "jobs_lowage_h", "jobs_midwage_h", "jobs_hiwage_h"), labels = c("Location of Job \nfor Low-wage Workers", "Mid-wage, Work", "High-wage, Work", "Location of Home \nfor Low-wage Workers", "Mid-wage, Home", "High-wage, Home"))) %>% 
   filter(variable == "jobs_lowage_w" | variable == "jobs_lowage_h")
 
 plot_jobs_county <- county_jobs %>% 
@@ -255,7 +264,7 @@ blkgrp_jobs_pop <- popdat_blkgrp %>%
                names_to = "groups",
                values_to = "jobs") %>%
   select(c("block_grp", "tract", "county", "groups", "jobs", "jobs_total_w", "jobs_total_h", "totpop_est")) %>%
-  mutate(groups = factor(groups, levels = c("jobs_lowage_w", "jobs_lowage_h"), labels = c("Location of Job for Low-wage Workers", "Location of Home for Low-wage Workers"))) %>%
+  mutate(groups = factor(groups, levels = c("jobs_lowage_w", "jobs_lowage_h"), labels = c("Location of Job \nfor Low-wage Workers", "Location of Home \nfor Low-wage Workers"))) %>%
   filter(totpop_est != 0) %>% 
   na.omit()
 
@@ -264,7 +273,7 @@ blkgrp_jobs_per <- popdat_blkgrp %>%
                names_to = "groups",
                values_to = "percent") %>%
   select(c("block_grp", "tract", "county", "groups", "percent")) %>%
-  mutate(groups = factor(groups, levels = c("percent_lowage_w", "percent_lowage_h"), labels = c("Location of Job for Low-wage Workers", "Location of Home for Low-wage Workers"))) %>%
+  mutate(groups = factor(groups, levels = c("percent_lowage_w", "percent_lowage_h"), labels = c("Location of Job \nfor Low-wage Workers", "Location of Home \nfor Low-wage Workers"))) %>%
   na.omit()
 
 blkgrp_jobs <- merge(blkgrp_jobs_pop, blkgrp_jobs_per) %>%
@@ -273,23 +282,27 @@ blkgrp_jobs <- merge(blkgrp_jobs_pop, blkgrp_jobs_per) %>%
 plot_blkgrp_jobs <- 
   blkgrp_jobs %>% 
   group_by(county) %>%
-  ggplot(aes(x = groups, y = percent, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_jobs, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  ggplot(aes(x = county, y = percent, color = county)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(preserve = "single")) +
+  geom_point(data = county_jobs, aes(x = county, y = percent, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(preserve = "single")) +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Population") +
   scale_x_discrete(name = "",
-                   labels = function(groups) str_wrap(groups, width = 20)) +
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
   ggtitle("By Block Group") +
+  facet_grid(~groups, switch = "x", scales = "free_x", space = "free_x") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
 
 annotate_figure(
-  ggarrange(plot_jobs_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_blkgrp_jobs, ncol = 1, nrow = 1, common.legend = TRUE),
   top = text_grob("Workers in Jobs Paying Less Than $15,000/year, \n by Where They Work and Where They Live", face = "bold", size = 16)
 )
 
@@ -303,7 +316,7 @@ annotate_figure(
 
 ```
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 6, fig.height=8}
 # By Income ----
 county_income <- popdat_county %>% 
   filter(demographic == "income") %>% 
@@ -340,8 +353,8 @@ plot_blkgrp_income <-
   blkgrp_income %>% 
   group_by(county) %>%
   ggplot(aes(x = county, y = medhhinc, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_income, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_income, aes(x = county, y = estimate, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(width = .75)) +
   scale_y_continuous(limits = c(0, 100000),
                      labels = scales::dollar_format(prefix="$"),
                            name = "Median Household Income") +
@@ -354,13 +367,13 @@ plot_blkgrp_income <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_income_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Median Household Income \n(Half of Households Make More, Half of Households Make Less)", face = "bold", size = 16)
+  ggarrange(plot_blkgrp_income, ncol = 1, nrow = 1, common.legend = TRUE),
+  top = text_grob("Median Household Income \n(Half of Households Make More, \nHalf of Households Make Less)", face = "bold", size = 16)
 )
 
 ```
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 6, fig.height=8}
 # By tenure ----
 county_tenure <- popdat_county %>% 
   filter(demographic == "own_rent") %>% 
@@ -405,28 +418,33 @@ blkgrp_tenure <- merge(blkgrp_tenure_pop, blkgrp_tenure_per) %>%
 plot_blkgrp_tenure <- 
   blkgrp_tenure %>% 
   group_by(county) %>%
-  ggplot(aes(x = groups, y = percent, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_tenure, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  ggplot(aes(x = county, y = percent, color = county)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(preserve = "single")) +
+  geom_point(data = county_tenure, aes(x = county, y = percent, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(preserve = "single")) +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Households") +
-  scale_x_discrete(name = "") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
   ggtitle("By Block Group") +
+  facet_grid(~groups, switch = "x", scales = "free_x", space = "free_x") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
 
 annotate_figure(
-  ggarrange(plot_tenure_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_blkgrp_tenure, ncol = 1, nrow = 1, common.legend = TRUE),
   top = text_grob("Homes Owned and Rented", face = "bold", size = 16)
 )
 
 ```
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 6, fig.height=8}
 # By housing value ----
 county_hvalues <- popdat_county %>% 
   filter(demographic == "housing_value") %>% 
@@ -461,8 +479,8 @@ plot_blkgrp_hvalues <-
   blkgrp_hvalues %>% 
   group_by(county) %>%
   ggplot(aes(x = county, y = medhome_est, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_hvalues, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_hvalues, aes(x = county, y = estimate, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(width = .75)) +
   scale_y_continuous(limits = c(0, 550000),
                      breaks = c(0, 100000, 200000, 300000, 400000, 500000),
                      labels = scales::dollar_format(prefix="$"),
@@ -476,13 +494,13 @@ plot_blkgrp_hvalues <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_hvalues_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_blkgrp_hvalues, ncol = 1, nrow = 1, common.legend = TRUE),
   top = text_grob("Median Value of Homes Lived in by Owners", face = "bold", size = 16)
 )
 
 ```
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 6, fig.height=8}
 # By median gross rent ----
 county_rents <- popdat_county %>% 
   filter(demographic == "rent_cost") %>% 
@@ -516,8 +534,8 @@ plot_blkgrp_rents <-
   blkgrp_rents %>% 
   group_by(county) %>%
   ggplot(aes(x = county, y = medrent_est, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_rents, aes(x = county, y = estimate, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(width = .75)) +
+  geom_point(data = county_rents, aes(x = county, y = estimate, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(width = .75)) +
   scale_y_continuous(limits = c(0, 2000),
                      labels = scales::dollar_format(prefix="$"),
                            name = "Median Rent") +
@@ -530,13 +548,13 @@ plot_blkgrp_rents <-
         axis.text.x = element_text(size = 12))
 
 annotate_figure(
-  ggarrange(plot_rents_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_blkgrp_rents, ncol = 1, nrow = 1, common.legend = TRUE),
   top = text_grob("Median Rent Paid by Renters", face = "bold", size = 16)
 )
 
 ```
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 6, fig.height=8}
 # By Online ----
 county_online <- popdat_county %>% 
   filter(demographic == "online") %>% 
@@ -571,9 +589,9 @@ blkgrp_online <- popdat_blkgrp %>%
 plot_blkgrp_online <- 
   blkgrp_online %>% 
   group_by(county) %>%
-  ggplot(aes(x = groups, y = percent, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_online, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  ggplot(aes(x = county, y = percent, color = county)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(preserve = "single")) +
+  geom_point(data = county_online, aes(x = county, y = percent, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(preserve = "single")) +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Households") +
@@ -581,19 +599,23 @@ plot_blkgrp_online <-
                    labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
   ggtitle("By Block Group") +
+  facet_grid(~groups, switch = "x", scales = "free_x", space = "free_x") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
 
 annotate_figure(
-  ggarrange(plot_online_county, ncol = 1, nrow = 1, common.legend = TRUE),
-  top = text_grob("Residents with Both a Computer and Broadband Internet at Home", face = "bold", size = 16)
+  ggarrange(plot_blkgrp_online, ncol = 1, nrow = 1, common.legend = TRUE),
+  top = text_grob("Residents with Both a Computer \nand Broadband Internet at Home", face = "bold", size = 16)
 )
 
 ```
 
-```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 6, fig.height=8}
 # By Age of housing ----
 county_hage <- popdat_county %>% 
   filter(demographic == "housing_age") %>% 
@@ -627,22 +649,29 @@ blkgrp_hage <- popdat_blkgrp %>%
 plot_blkgrp_hage <- 
   blkgrp_hage %>% 
   group_by(county) %>%
-  ggplot(aes(x = groups, y = percent, color = county)) +
-  geom_point(size=5, alpha = 0.2, position=position_dodge(width = .75)) +
-  geom_point(data = county_hage, aes(x = groups, y = percent, color = county), shape = 15, size = 6, alpha = .9, position=position_dodge(width = .75)) +
+  ggplot(aes(x = county, y = percent, color = county)) +
+  geom_point(size=7, alpha = 0.2, position=position_dodge(preserve = "single")) +
+  geom_point(data = county_hage, aes(x = county, y = percent, color = county), shape = 15, size = 9, alpha = .9, position=position_dodge(preserve = "single")) +
   scale_y_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                            name = "Percent of Housing Units") +
-  scale_x_discrete(name = "") +
+  scale_x_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
   scale_color_manual(values = pal) +
   ggtitle("By Block Group") +
+  ## facet by funct_type, switch strip to bottom
+  facet_grid(~groups, switch = "x", scales = "free_x", space = "free_x") +
   theme_minimal() +
   theme(legend.title=element_blank(),
         legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 12))
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
 
 annotate_figure(
-  ggarrange(plot_hage_county, ncol = 1, nrow = 1, common.legend = TRUE),
+  ggarrange(plot_blkgrp_hage, ncol = 1, nrow = 1, common.legend = TRUE),
   top = text_grob("Housing Units Built Before and After 1970", face = "bold", size = 16)
 )
 
