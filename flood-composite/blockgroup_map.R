@@ -6,7 +6,7 @@ library(ggrepel)
 
 # Data ----
 es_blkgrp <- readRDS("flood_composite_blkgrp.RDS")
-blkgrp_names <- read_excel("../eastern_shore/flood-composite/tract_names.xlsx", sheet = "blkgrp2020")
+blkgrp_names <- read_excel("tract_names.xlsx", sheet = "blkgrp2020")
 
 
 # Prep ----
