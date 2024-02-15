@@ -1,0 +1,375 @@
+---
+title: "ESVA Population Data"
+author: "Elizabeth Mitchell"
+date: "2023-12-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Libraries ----
+library(tidyverse)
+library(tidycensus)
+library(lehdr)
+library(leaflet)
+library(plotly)
+library(ggpubr)
+library(ggthemes)
+library(ggrepel)
+library(stringr)
+
+## Bring in block group and county data ----
+popdat_blkgrp <- read_csv("population_blkgrp.csv")
+popdat_blkgrp <- popdat_blkgrp %>% 
+  separate_wider_delim(NAME, delim = ", ", names = c("block_grp", "tract", "county", "state"))
+
+popdat_county <- read_csv("population_county.csv")
+
+## colors
+
+acc_pal <- "#6fc1ff"
+north_pal <- "#ff9793"
+
+
+```
+
+# Eastern Shore of Virginia: Accomack and Northhampton County Census Tracts and Block Groups
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+
+library(googlesheets4)
+library(sf)
+library(tools)
+library(tigris)
+options(tigris_use_cache = TRUE)
+library(sp)
+
+# county geography ----
+county <- counties(state = "51", cb = TRUE, year = 2021)
+es_county <- county %>% filter(COUNTYFP %in% c("001", "131"))
+
+countypal <- colorFactor(c("#6fc1ff", "#ff9793"), domain = es_county$NAME)
+
+
+# Tract names 
+# Currently using tract name data from /tracts
+tractnames <- readRDS("../easternshore-dashboard/data/tractnames.RDS")
+tractnames <- tractnames %>% 
+  rename(tract = NAMELSAD)  
+
+tract_nogeo <- tractnames %>% st_drop_geometry()
+#   mutate(center = st_centroid(geometry)) 
+# tractnames <- tractnames %>%
+#   select(c("TRACTCE", "locality", "GEOID", "names")) %>%
+#   st_drop_geometry() %>%
+#   rename(tract = TRACTCE, count = locality, tractnames = names)
+# tractnames$GEOID <- as.character(tractnames$GEOID)
+
+pal <- colorFactor(palette = tableau_color_pal(palette = "Tableau 20")(17), tractnames$TRACTCE)
+
+# add tract names 
+# tract_data <- tract_data %>%
+# left_join(tractnames, by = c("GEOID" = "GEOID", "tract" = "tract")) %>%
+#   select(move_last(., c("state", "locality", "tract")))
+
+# add tract names to block group (temporary solution without block group names)
+popdat_blkgrp <- popdat_blkgrp %>%
+  left_join(tractnames, by = "tract")
+
+
+# get block group polygons
+blkgrp_geo <- block_groups(state = 'VA', county = c("001", "131"), year = 2021, cb = TRUE) # from tigris / used 2021 bc 2022 caused error
+blkgrp_geo <- blkgrp_geo %>% 
+  # mutate(center = st_centroid(geometry))%>% 
+  left_join(tract_nogeo, by = "TRACTCE")
+
+
+
+leaflet() %>% addProviderTiles('CartoDB.Voyager') %>%
+      addPolygons(data = es_county,  
+                  fillColor = ~countypal(es_county$NAME),
+                    weight = 1,
+                    opacity = 1,
+                    color = "white",
+                    fillOpacity = 0.7) %>%
+      fitBounds(-76.26, 37.05, -75.11, 38.07)
+
+
+leaflet() %>% addProviderTiles('CartoDB.Voyager') %>%
+        addPolygons(data = tractnames,
+                  # fill = FALSE,
+                  fillColor = ~pal(tractnames$TRACTCE),
+                    weight = 2,
+                    opacity = 1,
+                    color = "white",
+                    fillOpacity = 0.5,
+                  # popup = tractnames$names
+                  ) %>%
+    addPolygons(data = blkgrp_geo,
+                  # fill = FALSE,
+                fillColor = ~countypal(blkgrp_geo$locality),
+                    weight = 1,
+                    opacity = 1,
+                    color = "white",
+                    fillOpacity = 0.2,
+                popup = paste0("Block Group: ", blkgrp_geo$NAMELSAD, "<br/>Tract Name: ", blkgrp_geo$names)
+                ) %>%
+
+# addLabelOnlyMarkers(
+#     data = tractnames$center,
+#     label = tractnames$names,
+#     labelOptions = labelOptions(noHide = T,
+#                                 # textOnly = TRUE
+#                                 )) %>%
+      fitBounds(-76.26, 37.05, -75.11, 38.07)
+
+```
+
+
+# Demographics on the Eastern Shore of Virgina
+
+## Race and Ethnicity: Accomack and Northampton Counties
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+
+county_race <- popdat_county %>% 
+  filter(demographic == "race") %>% 
+  mutate(percent = estimate/totalpop,
+         groups = factor(variable, levels = c("whitepop", "blackpop", "ltnxpop", "remainpop"), labels = c("White", "Black", "Hispanic", "All Remaining Groups")))
+
+plot_race_acc <- county_race %>% 
+  filter(NAME == "Accomack County, Virginia") %>% 
+  ggplot(aes(x = groups, y = percent, fill = NAME)) +
+  geom_bar(stat = "identity", fill = acc_pal) +
+  scale_y_continuous(limits = c(0, 1),
+                     labels = scales::percent,
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  theme_minimal()
+
+# ggplotly(plot_race_acc) %>%
+#   hide_legend()
+
+plot_race_nor <- county_race %>% 
+  filter(NAME == "Northampton County, Virginia") %>% 
+  ggplot(aes(x = groups, y = percent, fill = NAME)) +
+    geom_bar(stat = "identity", fill = north_pal) +
+    scale_y_continuous(limits = c(0, 1),
+                     labels = scales::percent,
+                           name = "Percent of County Population") +
+    scale_x_discrete(name = "Racial & Ethnic Identities") +
+    theme_minimal()
+
+ggarrange(plot_race_acc, plot_race_nor, nrow = 1, common.legend = FALSE)
+
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+
+acc_blkgrp_race_pop <- popdat_blkgrp %>% 
+  filter(county == "Accomack County") %>%
+  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est", "names")) %>%
+  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+acc_blkgrp_race_per <- popdat_blkgrp %>% 
+  filter(county == "Accomack County") %>%
+  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent", "names")) %>%
+  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  na.omit()
+
+acc_blkgrp_race <- merge(acc_blkgrp_race_pop, acc_blkgrp_race_per)
+acc_blkgrp_race <- acc_blkgrp_race %>% 
+  mutate(label = paste0(round(percent, 0), "% (", pop, " people)\n", block_grp, ", ", tract, "\n(", names,  ")"),
+         )
+
+plot_blkgrp_race_acc <- 
+  acc_blkgrp_race %>% 
+  group_by(groups) %>% 
+  filter(percent == max(percent) | percent == min(percent)) %>% 
+  filter(duplicated(percent) == FALSE) %>%
+  ggplot(aes(x = groups, y = percent, label = label)) +
+  geom_line(aes(group = groups), linewidth = 1, color = acc_pal) +
+  geom_point(aes(text = paste0("name: ", names)),size=4, color = acc_pal) +
+  geom_text(hjust=0, vjust=0, size = 2) +
+#   geom_text_repel(aes(label = label),
+#                   force_pull   = 0,
+#                   # ,color = "black",
+#                   size = 2,
+#                   nudge_x      = 0.05,
+#                       direction    = "y",
+#                   # fontface = "bold",
+#                   point.size = NA,
+#                   hjust        = 0,
+#                   segment.size = 0.2,
+#                   show.legend = FALSE,
+#                   box.padding = 0.05,
+# # label.padding = 0.25,
+#                   max.iter = 1e4, max.time = 1
+#                   # min.segment.length = Inf
+#                   ) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Block Group Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  theme_minimal()
+
+ggplotly(plot_blkgrp_race_acc, tooltip = list("text", "percent")) %>%
+  hide_legend()
+
+
+nor_blkgrp_race_pop <- popdat_blkgrp %>% 
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est", "names")) %>%
+  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+nor_blkgrp_race_per <- popdat_blkgrp %>% 
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent", "names")) %>%
+  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  na.omit()
+
+nor_blkgrp_race <- merge(nor_blkgrp_race_pop, nor_blkgrp_race_per)
+
+plot_blkgrp_race_nor <- 
+  nor_blkgrp_race %>% 
+   mutate(label = paste0(round(percent, 0), "% (", pop, " people)\n", block_grp, ", ", tract, "\n(", names,  ")")
+            # paste0(round(percent, 0), "% (", pop, ")\n", names,": ", block_grp),
+         ) %>%
+  group_by(groups) %>% 
+  filter(percent == max(percent) | percent == min(percent)) %>% 
+  filter(duplicated(percent) == FALSE) %>% 
+  ggplot(aes(x = groups, y = percent)) +
+  geom_line(aes(group = groups), linewidth = 1, color = north_pal) +
+  geom_point(size=4, color = north_pal) +
+  geom_text(aes(label = label),hjust=0.5, vjust=0, size = 2) +
+#   geom_text_repel(aes(label = label),
+#                   force_pull   = 0,
+#                   # ,color = "black",
+#                   size = 2,
+#                   nudge_x      = 0.05,
+#                       direction    = "y",
+#                   # fontface = "bold",
+#                   point.size = NA,
+#                   hjust        = 0.5,
+#                   segment.size = 0.2,
+#                   show.legend = FALSE,
+#                   box.padding = 0.05,
+# # label.padding = 0.25,
+#                   max.iter = 1e4, max.time = 1
+#                   # min.segment.length = Inf
+#                   ) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Block Group Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  theme_minimal()
+
+plot_blkgrp_race_acc
+
+plot_blkgrp_race_nor
+
+# ggarrange(plot_blkgrp_race_acc, plot_blkgrp_race_nor, nrow = 1, common.legend = FALSE)
+```
+
+
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width='100%'}
+## Race and Ethnicity: Northampton County
+county_race <- popdat_county %>%
+  filter(demographic == "race") %>%
+  mutate(percent = estimate/totalpop,
+         groups = factor(variable, levels = c("whitepop", "blackpop", "ltnxpop", "remainpop"), labels = c("White", "Black", "Hispanic", "All Remaining Groups")))
+
+race_nor <- county_race %>%
+  filter(NAME == "Northampton County, Virginia")
+
+plot_race_nor <- ggplotly((
+    ggplot(race_nor, aes(x = groups, y = percent, fill = NAME, text = paste0(round(percent*100, 0), "%"))) +
+    geom_bar(stat = "identity", fill = north_pal) +
+    scale_y_continuous(limits = c(0, 1),
+                     labels = scales::percent,
+                           name = "Percent of County Population") +
+    scale_x_discrete(name = "Racial & Ethnic Identities") +
+    theme_minimal()
+  ),
+    tooltip = c('text')
+  )
+
+# ggplotly(plot_race_nor) %>%
+#   hide_legend()
+
+nor_blkgrp_race_pop <- popdat_blkgrp %>%
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est", "names")) %>%
+  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  filter(totpop_est != 0) %>%
+  na.omit()
+
+nor_blkgrp_race_per <- popdat_blkgrp %>%
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent", "names")) %>%
+  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  na.omit()
+
+nor_blkgrp_race <- merge(nor_blkgrp_race_pop, nor_blkgrp_race_per)
+
+blkgrp_race_nor <-
+  nor_blkgrp_race %>%
+  group_by(groups) %>%
+  filter(percent == max(percent) | percent == min(percent))
+
+plot_blkgrp_race_nor <- ggplotly((
+ggplot(blkgrp_race_nor, aes(x = groups, y = percent, 
+                            text = paste0(block_grp, ", ", tract, " (", names,  ")\nPercent of Block Group Population: ", paste0(round(percent, 0), "% (", pop, " people)"))
+                #             text = stringr::str_wrap(
+                #   string = paste0(names, ", ", block_grp, ": ", round(percent, 0), "% (n=", pop, ")"),
+                #   width = 25,
+                #   indent = 1, # let's add extra space from the margins
+                #   exdent = 1  # let's add extra space from the margins
+                # )
+                )) +
+  geom_line(aes(group = groups), linewidth = 1, color = north_pal) +
+  geom_point(size=4, color = north_pal) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Block Group Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  theme_minimal()
+  ),
+    tooltip = c("text")
+  )
+
+# ggplotly(plot_blkgrp_race) %>%
+#   hide_legend()
+
+subplot(plot_race_nor,plot_blkgrp_race_nor, nrows = 1,
+          # margin = c(0.02, 0.02, 0.05, 0.01), # c(left, right, top, bottom )
+          titleY = TRUE, titleX = TRUE)
+
+```
+

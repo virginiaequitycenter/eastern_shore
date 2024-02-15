@@ -1,0 +1,275 @@
+---
+title: "ESVA Population Data"
+author: "Elizabeth Mitchell"
+date: "2024-01-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Libraries ----
+library(tidyverse)
+library(tidycensus)
+library(lehdr)
+library(ggpubr)
+library(stringr)
+
+## Bring in block group and county data ----
+popdat_blkgrp <- read_csv("population_blkgrp.csv")
+popdat_blkgrp <- popdat_blkgrp %>% 
+  separate_wider_delim(NAME, delim = "; ", names = c("block_grp", "tract", "county", "state"))
+
+popdat_county <- read_csv("population_county.csv")
+
+## colors
+
+acc_pal <- "#6fc1ff"
+north_pal <- "#ff9793"
+
+
+```
+
+# Demographics on the Eastern Shore of Virgina
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Race/Ethinicty
+county_race <- popdat_county %>% 
+  filter(demographic == "race") %>% 
+  mutate(percent = (estimate/totalpop) * 100,
+         groups = factor(variable, levels = c("whitepop", "blackpop", "ltnxpop", "remainpop"), labels = c("White", "Black", "Hispanic", "All Remaining Groups")))
+
+plot_race_acc <- county_race %>% 
+  filter(NAME == "Accomack County, Virginia") %>% 
+  ggplot(aes(x = groups, y = percent, fill = NAME)) +
+  geom_bar(stat = "identity", fill = acc_pal) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  ggtitle("Accomack County") +
+  theme_minimal()
+
+plot_race_nor <- county_race %>% 
+  filter(NAME == "Northampton County, Virginia") %>% 
+  ggplot(aes(x = groups, y = percent, fill = NAME)) +
+    geom_bar(stat = "identity", fill = north_pal) +
+    scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+    scale_x_discrete(name = "Racial & Ethnic Identities") +
+    ggtitle("Northampton County") +
+    theme_minimal()
+
+# ggarrange(plot_race_acc, plot_race_nor, nrow = 1, common.legend = FALSE)
+
+# Accomack County blockgroup data
+acc_blkgrp_race_pop <- popdat_blkgrp %>% 
+  filter(county == "Accomack County") %>%
+  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+acc_blkgrp_race_per <- popdat_blkgrp %>% 
+  filter(county == "Accomack County") %>%
+  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  na.omit()
+
+acc_blkgrp_race <- merge(acc_blkgrp_race_pop, acc_blkgrp_race_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_race_acc <- 
+  acc_blkgrp_race %>% 
+  group_by(groups) %>%
+  ggplot(aes(x = groups, y = percent, color = type)) +
+  geom_point(size=5, alpha = 0.15) +
+  geom_point(data = (county_race %>% filter(NAME == "Accomack County, Virginia")%>% mutate(type = "Accomack County")), aes(x = groups, y = percent), size = 5, alpha = .8) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  scale_color_manual(values = c(acc_pal,"black")) +
+  ggtitle("Accomack Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# Northampton block group data
+nor_blkgrp_race_pop <- popdat_blkgrp %>% 
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("whitepop_est", "blackpop_est", "ltnxpop_est", "remainpop_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+nor_blkgrp_race_per <- popdat_blkgrp %>% 
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("whiteper_est", "blackper_est", "ltnxper_est", "remainper_est"), labels = c("White", "Black", "Hispanic", "All Remaining Groups"))) %>%
+  na.omit()
+
+nor_blkgrp_race <- merge(nor_blkgrp_race_pop, nor_blkgrp_race_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_race_nor <- 
+  nor_blkgrp_race %>%
+  group_by(groups) %>%
+  ggplot(aes(x = groups, y = percent, color = type)) +
+  geom_point(size=5, alpha = 0.15) +
+  geom_point(data = (county_race %>% filter(NAME == "Northampton County, Virginia") %>% mutate(type = "Northampton County")), aes(x = groups, y = percent), size = 5, alpha = .8) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Racial & Ethnic Identities") +
+  scale_color_manual(values = c("black", north_pal),
+                           guide = guide_legend(reverse = TRUE)) +
+  ggtitle("Northampton Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# ggarrange(plot_race_acc, plot_blkgrp_race_acc, plot_race_nor, plot_blkgrp_race_nor, ncol = 2, nrow = 2, common.legend = FALSE, widths = c(0.5, 1))
+
+annotate_figure(
+  ggarrange(plot_race_acc, plot_blkgrp_race_acc, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Race and Ethnicity: Accomack County", face = "bold", size = 16)
+)
+
+annotate_figure(
+ggarrange(plot_race_nor, plot_blkgrp_race_nor, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Race and Ethnicity: Northampton County", face = "bold", size = 16)
+)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, fig.width = 10}
+# By Age
+county_age <- popdat_county %>% 
+  filter(demographic == "age") %>% 
+  mutate(percent = (estimate/totalpop) * 100,
+         groups = factor(variable, levels = c("age17pop", "age18to64pop", "age65pop"), labels = c("Under 18", "18-64 yrs", "65 and Older")))
+
+plot_age_acc <- county_age %>% 
+  filter(NAME == "Accomack County, Virginia") %>% 
+  ggplot(aes(x = groups, y = percent, fill = NAME)) +
+  geom_bar(stat = "identity", fill = acc_pal) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Age Group") +
+  ggtitle("Accomack County") +
+  theme_minimal()
+
+plot_age_nor <- county_age %>% 
+  filter(NAME == "Northampton County, Virginia") %>% 
+  ggplot(aes(x = groups, y = percent, fill = NAME)) +
+    geom_bar(stat = "identity", fill = north_pal) +
+    scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+    scale_x_discrete(name = "Age Group") +
+    ggtitle("Northampton County") +
+    theme_minimal()
+
+# Accomack County blockgroup data
+acc_blkgrp_age_pop <- popdat_blkgrp %>% 
+  filter(county == "Accomack County") %>%
+  pivot_longer(cols = c("age17pop_est", "age18to64pop_est", "age65pop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("age17pop_est", "age18to64pop_est", "age65pop_est"), labels = c("Under 18", "18-64 yrs", "65 and Older"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+acc_blkgrp_age_per <- popdat_blkgrp %>% 
+  filter(county == "Accomack County") %>%
+  pivot_longer(cols = c("age17per_est", "age18to64per_est", "age65per_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("age17per_est", "age18to64per_est", "age65per_est"), labels = c("Under 18", "18-64 yrs", "65 and Older"))) %>%
+  na.omit()
+
+acc_blkgrp_age <- merge(acc_blkgrp_age_pop, acc_blkgrp_age_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_age_acc <- 
+  acc_blkgrp_age %>% 
+  group_by(groups) %>%
+  ggplot(aes(x = groups, y = percent, color = type)) +
+  geom_point(size=5, alpha = 0.15) +
+  geom_point(data = (county_age %>% filter(NAME == "Accomack County, Virginia")%>% mutate(type = "Accomack County")), aes(x = groups, y = percent), size = 5, alpha = .8) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Age Group") +
+  scale_color_manual(values = c(acc_pal,"black")) +
+  ggtitle("Accomack Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# Northampton block group data
+nor_blkgrp_age_pop <- popdat_blkgrp %>% 
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("age17pop_est", "age18to64pop_est", "age65pop_est"),
+               names_to = "groups",
+               values_to = "pop") %>%
+  select(c("block_grp", "tract", "county", "groups", "pop", "totpop_est")) %>%
+  mutate(groups = factor(groups, levels = c("age17pop_est", "age18to64pop_est", "age65pop_est"), labels = c("Under 18", "18-64 yrs", "65 and Older"))) %>%
+  filter(totpop_est != 0) %>% 
+  na.omit()
+
+nor_blkgrp_age_per <- popdat_blkgrp %>% 
+  filter(county == "Northampton County") %>%
+  pivot_longer(cols = c("age17per_est", "age18to64per_est", "age65per_est"),
+               names_to = "groups",
+               values_to = "percent") %>%
+  select(c("block_grp", "tract", "county", "groups", "percent")) %>%
+  mutate(groups = factor(groups, levels = c("age17per_est", "age18to64per_est", "age65per_est"), labels = c("Under 18", "18-64 yrs", "65 and Older"))) %>%
+  na.omit()
+
+nor_blkgrp_age <- merge(nor_blkgrp_age_pop, nor_blkgrp_age_per) %>%
+  mutate(type = "Block Group")
+
+plot_blkgrp_age_nor <- 
+  nor_blkgrp_age %>%
+  group_by(groups) %>%
+  ggplot(aes(x = groups, y = percent, color = type)) +
+  geom_point(size=5, alpha = 0.15) +
+  geom_point(data = (county_age %>% filter(NAME == "Northampton County, Virginia") %>% mutate(type = "Northampton County")), aes(x = groups, y = percent), size = 5, alpha = .8) +
+  scale_y_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                           name = "Percent of Population") +
+  scale_x_discrete(name = "Age Group") +
+  scale_color_manual(values = c("black", north_pal),
+                           guide = guide_legend(reverse = TRUE)) +
+  ggtitle("Northampton Block Groups") +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# ggarrange(plot_race_acc, plot_blkgrp_race_acc, plot_race_nor, plot_blkgrp_race_nor, ncol = 2, nrow = 2, common.legend = FALSE, widths = c(0.5, 1))
+
+annotate_figure(
+  ggarrange(plot_age_acc, plot_blkgrp_age_acc, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Age: Accomack County", face = "bold", size = 16)
+)
+
+annotate_figure(
+ggarrange(plot_age_nor, plot_blkgrp_age_nor, ncol = 2, nrow = 1, common.legend = TRUE),
+  top = text_grob("Age: Northampton County", face = "bold", size = 16)
+)
+
+```
