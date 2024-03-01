@@ -1,17 +1,19 @@
 ---
 title: "ESVA: Who are you worried about?"
-date: "2024-02-16"
+date: "2024-02-29"
 output: 
   html_document:
-    code_folding: hide
+    toc: true
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ```{r libs}
 library(tidyverse)
+library(scales)
 library(readxl)
 library(sf)
 library(ggiraph) # https://www.ardata.fr/ggiraph-book/
@@ -20,39 +22,278 @@ library(ggspatial) # appears to require installation of "rosm" and "prettymapr" 
 ```
 
 ```{r data}
+# flood hazard data
+flood_blkgrp <- readRDS("../flood_composite_blkgrp.RDS")
+
+# make 10 percent columns
+flood_blkgrp <- flood_blkgrp %>% 
+  mutate(across(starts_with("sum"), ~.x/cells, .names = "per_{.col}"))
+
 # pop data
-pop_blkgrp <- read_csv("population_blkgrp.csv")
+pop_blkgrp <- read_csv("../population_blkgrp.csv")
 pop_blkgrp <- pop_blkgrp %>% 
   separate_wider_delim(NAME, delim = "; ", 
                        names = c("block_grp", "tract", "county", "state")) %>% 
   mutate(GEOID = as.character(GEOID))
 
-# names
-blkgrp_names <- read_excel("tract_names.xlsx", sheet = "blkgrp2020")
+# block group names
+blkgrp_names <- read_excel("../tract_names.xlsx", sheet = "blkgrp2020")
 blkgrp_names <- blkgrp_names %>% 
   mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
          tract = str_pad(tract, width = 6, side = "left", pad = "0"),
          GEOID = paste0("51",localityfips,tract,blkgrp),
          names = str_remove(names, "'"))
 
-# geo
-blkgrp_geo <- read_sf("esva_blkgrp_shapefile.geojson")
-
 # join
-bg_df <- blkgrp_geo %>% 
+bg_df <- flood_blkgrp %>% 
   left_join(pop_blkgrp, by = "GEOID") %>% 
-  left_join(blkgrp_names, by = "GEOID") %>% 
-  mutate(toolinfo = paste0(names, "\n", 
-                           "Percent: ", round(percent_lowage_w, 1),
-                           "\n", "Number: ", jobs_lowage_w))
-
-
-## colors
-pal <- c("#3aadfc", "#e74b77")
+  left_join(blkgrp_names, by = "GEOID") 
 ```
 
-```{r map1}
-### Jobs paying less than 15K 
+## NOAA Coastal Flood Hazard Components
+
+### Percent of area subject to high tide flooding
+
+```{r flood1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_HighTideFlooding*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_HighTideFlooding, 
+                          tooltip = toolinfo, 
+                          data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent\nof Area Subject\nto High Tide\nFlooding", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_HighTideFlooding, 
+                              y = fct_rev(county), 
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1), 
+                     labels = scales::percent_format(scale = 100), name = "Percent of Area") +
+  scale_y_discrete(name = "", 
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+### Percent of area subject to storm surge (catgory 2) flooding
+
+```{r flood2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_ss.cat2*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_ss.cat2,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent\nof Area Subject\nto Storm Surge\nFlooding (Cat 2)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_ss.cat2, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+### Percent of area subject to flooding from sea level rise (2 feet)
+
+```{r flood3}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_slr2.ft*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_slr2.ft,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea Subject to\nSea Level Rise (2ft)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_slr2.ft, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+### Percent of area in 2% annual chance flood zone
+
+```{r flood4}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_azone.2percent*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_azone.2percent,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea in the 2%\nAnnual Flood Zone", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_azone.2percent, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+### Average flood exposure composite across four flood measures
+
+```{r flood5}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Average: ",
+                           round(mean_HazardNumber, 1)))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = mean_HazardNumber,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Average\nFlood\nHazard\nCompsite") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = mean_HazardNumber, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Average across Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+## Population Characteristics
+
+### Workers in jobs paying less than $15,000/year, by place of work
+```{r pop1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(percent_lowage_w, 1), "%",
+                           "\n", "Number: ", jobs_lowage_w))
+
+# make map
 gg_map <- ggplot(bg_df) +
   # annotation_map_tile(type = "cartolight") +
   geom_sf_interactive(aes(fill = percent_lowage_w,
@@ -65,45 +306,12 @@ gg_map <- ggplot(bg_df) +
         legend.text = element_text(size = 5),
         legend.position = c(.8, .4))
 
-# girafe(ggobj = gg_map)
-
-gg_map_tile <- ggplot(bg_df) +
-  annotation_map_tile(type = "cartolight") +
-  geom_sf_interactive(aes(fill = percent_lowage_w,
-                          tooltip = toolinfo, data_id = GEOID), 
-                      color = "white", alpha = 1/2) +
-  scale_fill_gradient(low = "grey90", high = "darkgreen", 
-                      name = "Percent\nof Workers\nin Low-wage\nJobs") +
-  theme_void() +
-  theme(legend.title = element_text(size = 6),
-        legend.text = element_text(size = 5),
-        legend.position = c(.8, .4))
-
-```
-
-```{r}
-gg_point <- ggplot(bg_df, aes(x = county, y = percent_lowage_w,
-                  color = county, tooltip = toolinfo, data_id = GEOID)) +
-  geom_point_interactive(size=7, alpha = 0.2, color = "steelblue4") +
-  scale_y_continuous(limits = c(0, 100),
-                     labels = scales::percent_format(scale = 1),
-                     name = "Percent of Population") +
-  scale_x_discrete(name = "",
-                   labels = function(groups) str_wrap(groups, width = 10)) +
-  theme_minimal() +
-  theme(legend.title=element_blank(),
-        legend.text = element_text(size = 12),
-        axis.text.x = element_text(size = 11),
-        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
-        strip.text.x = element_text(size = 12),
-        strip.placement = "outside")
-
-# girafe(ggobj = gg_point)
-
-gg_point_flip <- ggplot(bg_df, aes(x = percent_lowage_w, y = fct_rev(county),
-                              color = percent_lowage_w, tooltip = toolinfo, 
+# make points
+gg_point <- ggplot(bg_df, aes(x = percent_lowage_w, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
                               data_id = GEOID)) +
-  geom_point_interactive(size = 7, alpha = 0.2, color = "darkgreen") +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
   scale_x_continuous(limits = c(0, 100),
                      labels = scales::percent_format(scale = 1),
                      name = "Percent of Population") +
@@ -117,19 +325,328 @@ gg_point_flip <- ggplot(bg_df, aes(x = percent_lowage_w, y = fct_rev(county),
         strip.text.x = element_text(size = 12),
         strip.placement = "outside")
 
-```
-
-### Workers in Jobs Paying Less Than $15,000/year, by Where They Work
-```{r}
 girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
        width_svg = 12, height_svg = 6) %>%
   girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
 ```
 
-### Workers in Jobs Paying Less Than $15,000/year, by Where They Work (Alternative)
-```{r}
-girafe(ggobj = gg_point_flip + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+### Residents aged 65 and over
+```{r pop2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(age65per_est, 1), "%",
+                           "\n", "Number: ", age65pop_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = age65per_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nAged 65\nand over") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = age65per_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Population") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
        width_svg = 12, height_svg = 6) %>%
   girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
 ```
 
+### Residential buildings built before 1970
+```{r pop3}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(bldgage70per_est, 1), "%",
+                           "\n", "Number: ", bldgage70_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = bldgage70per_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nBuildings\nBuilt\nBefore 1970") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = bldgage70per_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residential Buildings") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Households with broadband access and computer
+```{r pop4}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(onlineper_est, 1), "%",
+                           "\n", "Number: ", onlinehh_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = onlineper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nHouseholds\nwith Broadband") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = onlineper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Households") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Median household income
+```{r pop5}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Median Income: ", "$",
+                           round(medhhinc_est, 1)))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = medhhinc_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Median\nHousehold\nIncome") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = medhhinc_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(#limits = c(0, 100),
+                     #labels = scales::percent_format(scale = 1),
+                     name = "Median Income") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Racial identification of residents: Black or African American
+```{r pop6}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(blackper_est, 1), "%",
+                           "\n", "Number: ", blackpop_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = blackper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nWho Identify\nas Black") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = blackper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residents") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Racial identification of residents: White
+```{r pop7}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(whiteper_est, 1), "%",
+                           "\n", "Number: ", whitepop_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = whiteper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nWho Identify\nas White") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = whiteper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residents") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Ethnic identification of residents: Hispanic or Latino
+```{r pop8}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(ltnxper_est, 1), "%",
+                           "\n", "Number: ", ltnxpop_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = ltnxper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nWho Identify\nas Hispanic") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = ltnxper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residents") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
