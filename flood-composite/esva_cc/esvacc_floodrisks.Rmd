@@ -1,0 +1,535 @@
+---
+title: "ESVA: Flood Risks"
+date: "2024-03-17"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r libs}
+library(tidyverse)
+library(scales)
+library(readxl)
+library(sf)
+library(ggiraph) # https://www.ardata.fr/ggiraph-book/
+library(patchwork)
+library(ggspatial) # appears to require installation of "rosm" and "prettymapr" as well
+```
+
+```{r data}
+# flood hazard data
+flood_blkgrp <- readRDS("../flood_composite_blkgrp.RDS")
+
+# make 10 percent columns
+flood_blkgrp <- flood_blkgrp %>% 
+  mutate(across(starts_with("sum"), ~.x/cells, .names = "per_{.col}"))
+
+# pop data
+pop_blkgrp <- read_csv("../population_blkgrp.csv")
+pop_blkgrp <- pop_blkgrp %>% 
+  separate_wider_delim(NAME, delim = "; ", 
+                       names = c("block_grp", "tract", "county", "state")) %>% 
+  mutate(GEOID = as.character(GEOID))
+
+# block group names
+blkgrp_names <- read_excel("../tract_names.xlsx", sheet = "blkgrp2020")
+blkgrp_names <- blkgrp_names %>% 
+  mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
+         tract = str_pad(tract, width = 6, side = "left", pad = "0"),
+         GEOID = paste0("51",localityfips,tract,blkgrp),
+         names = str_remove(names, "'"))
+
+# join
+bg_df <- flood_blkgrp %>% 
+  left_join(pop_blkgrp, by = "GEOID") %>% 
+  left_join(blkgrp_names, by = "GEOID") 
+```
+
+## NOAA Coastal Flood Hazard Components
+
+The flood risk components from [NOAA's Coastal Flood Exposure Mapper](https://coast.noaa.gov/floodexposure/#-8495347,4529744,9z/eyJoIjoiaGF6YXJkQ29tcG9zaXRlfDF8In0=) are summarized at the census block group level. [Block groups](https://www.census.gov/programs-surveys/geography/about/glossary.html#par_textimage_4), which can contain anywhere from 600 to 3,000 residents, are intended to approximate neighborhoods and are designated with local input. They are the smallest area for which data about the population of residents is released by the census bureau. 
+
+### Percent of area subject to high tide flooding
+
+The percent of the census block group in low-lying coastal areas prone to flooding during extreme high tides. Extreme high tides occur a few times per year when the sun, moon, and earth align, or during storm events.
+
+```{r hitide}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_HighTideFlooding*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_HighTideFlooding, 
+                          tooltip = toolinfo, 
+                          data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent\nof Area Subject\nto High Tide\nFlooding", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_HighTideFlooding, 
+                              y = fct_rev(county), 
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1), 
+                     labels = scales::percent_format(scale = 100), name = "Percent of Area") +
+  scale_y_discrete(name = "", 
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+### Percent of area subject to storm surge flooding {.tabset}
+
+The percent of the census block group within storm surge inundation zones due to hurricanes. Hurricane storm surge heights are influenced by many factors, including hurricane intensity, size, forward speed, the angle of approach to the shoreline, and the characteristics of the coastline. Maximum inundations from multiple storm surge scenarios are combined to produce the inundation zones.
+
+#### Category 1 Storm
+
+```{r surge1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_ss.cat1*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_ss.cat1,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent\nof Area Subject\nto Storm Surge\nFlooding (Cat 1)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_ss.cat1, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+#### Category 2 Storm
+
+```{r surge2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_ss.cat2*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_ss.cat2,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent\nof Area Subject\nto Storm Surge\nFlooding (Cat 2)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_ss.cat2, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+#### Category 3 Storm
+
+```{r surge3}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_ss.cat3*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_ss.cat3,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent\nof Area Subject\nto Storm Surge\nFlooding (Cat 3)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_ss.cat3, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+
+### Percent of area subject to flooding from sea level rise {.tabset}
+
+The percent of the census block group projected to be inundated under sea level rise scenarios. Changes in local, or relative, sea level have long-term implications, including increased extent and frequency of events such as storm surge, as well as permanent changes to shorelines and coastal habitats.
+
+#### 1-foot SLR Scenario
+
+```{r slr1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_slr1.ft*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_slr1.ft,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea Subject to\nSea Level Rise (1ft)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_slr1.ft, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+#### 2-foot SLR Scenario
+
+```{r slr2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_slr2.ft*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_slr2.ft,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea Subject to\nSea Level Rise (2ft)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_slr2.ft, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+#### 3-foot SLR Scenario
+
+```{r slr3}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_slr3.ft*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_slr3.ft,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea Subject to\nSea Level Rise (3ft)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_slr3.ft, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+### Percent of area in FEMA flood zones {.tabset}
+
+The percent of the census block group within the A and V flood high-risk (1% annual chance) and moderate-risk (0.2% annual chance) zones designated by the Federal Emergency Management Agency (FEMA).
+
+The 1-percent annual flood zone is the area that will be inundated by the flood event having a 1-percent chance of being equaled or exceeded in any given year. The 1-percent annual chance flood is also referred to as the 100-year flood; the 0.2-percent annual chance flood is also referred to as the 500-year flood.
+
+Areas designated as V zones are subject to greater hazard due to storm waves and wind.
+
+#### A Zone, 1% annual chance of flooding
+
+```{r fema1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_azone.1percent*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_azone.1percent,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea in the 1%\nAnnual Flood Zone", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_azone.1percent, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+#### A Zone, .2% annual chance of flooding
+
+```{r fema2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_azone.2percent*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_azone.2percent,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea in the .2%\nAnnual Flood Zone", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_azone.2percent, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+
+#### V Zone, 1% annual chance of flooding
+
+```{r fema3}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(per_sum_vzone.1percent*100, 0), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = per_sum_vzone.1percent,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkblue", 
+                      name = "Percent of\nArea in the 1%\nAnnual Flood Zone (V)", labels = scales::percent_format(scale = 100)) +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = per_sum_vzone.1percent, 
+                                   y = fct_rev(county),
+                                   tooltip = toolinfo, 
+                                   data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#98817b") +
+  scale_x_continuous(limits = c(0, 1),
+                     labels = scales::percent_format(scale = 100),
+                     name = "Percent of Area") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkblue;stroke-width:2px;"))         
+```
+

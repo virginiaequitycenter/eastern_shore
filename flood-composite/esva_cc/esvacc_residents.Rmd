@@ -1,0 +1,577 @@
+---
+title: "ESVA: Resident Characteristics"
+date: "2024-03-17"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r libs}
+library(tidyverse)
+library(scales)
+library(readxl)
+library(sf)
+library(ggiraph) # https://www.ardata.fr/ggiraph-book/
+library(patchwork)
+library(ggspatial) # appears to require installation of "rosm" and "prettymapr" as well
+```
+
+```{r data}
+# flood hazard data
+flood_blkgrp <- readRDS("../flood_composite_blkgrp.RDS")
+
+# make 10 percent columns
+flood_blkgrp <- flood_blkgrp %>% 
+  mutate(across(starts_with("sum"), ~.x/cells, .names = "per_{.col}"))
+
+# pop data
+pop_blkgrp <- read_csv("../population_blkgrp.csv")
+pop_blkgrp <- pop_blkgrp %>% 
+  separate_wider_delim(NAME, delim = "; ", 
+                       names = c("block_grp", "tract", "county", "state")) %>% 
+  mutate(GEOID = as.character(GEOID))
+
+# block group names
+blkgrp_names <- read_excel("../tract_names.xlsx", sheet = "blkgrp2020")
+
+blkgrp_names <- blkgrp_names %>% 
+  mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
+         tract = str_pad(tract, width = 6, side = "left", pad = "0"),
+         GEOID = paste0("51",localityfips,tract,blkgrp),
+         names = str_remove(names, "'"))
+
+# join
+bg_df <- flood_blkgrp %>% 
+  left_join(pop_blkgrp, by = "GEOID") %>% 
+  left_join(blkgrp_names, by = "GEOID") 
+```
+
+## Population Characteristics
+
+Below are a selection of population data -- characteristics of the people who live and work in the Eastern Shore of Virginia -- drawn primarily from the [American Community Survey](https://www.census.gov/programs-surveys/acs/about.html) conducted the U.S. Census Bureau. The data here come from the 2018-2022 5-year estimates. Population characteristics are summarized at the census block group level. [Block groups](https://www.census.gov/programs-surveys/geography/about/glossary.html#par_textimage_4), which can contain anywhere from 600 to 3,000 residents, are intended to approximate neighborhoods and are designated with local input. They are the smallest area for which data about the population of residents is released by the census bureau.
+
+### Population and Age {.tabset}
+
+These figures provide the estimated number of people who live in each census block group, an initial measure of how many people might be exposed to risk in a given area. In addition, the percent who are youth (17 and under) and the percent who are senior citizens (65 and over) are also shown, as these populations may be impacted differently by flood and climate changes.
+
+#### Total Population
+
+```{r pop1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Number: ",
+                           round(totpop_est, 1)))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = totpop_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Number of\nResidents") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = totpop_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+#  scale_x_continuous(limits = c(0, 100),
+#                     labels = scales::percent_format(scale = 1),
+#                     name = "Percent of Population") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+#### Population 17 and Under
+
+```{r age1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(age17per_est, 1), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = age17per_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nAged 17\nand under") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = age17per_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Population") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+#### Residents Aged 65 and Over
+
+```{r age2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(age65per_est, 1), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = age65per_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nAged 65\nand over") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = age65per_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Population") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Economic Security {.tabset}
+
+The figures below provide different perspectives on economic security. First, where do workers in low-paying jobs work? These are the jobs most likely to pay hourly and to require working in person (these data come from . Second, what is the median household income across areas? The median income is the value for which half of the households in the area earn more and half earn less (due to data limitations, this value is not provided for some block groups). Areas with higher incomes, on average, have more resources to weather climate and flood risk. Third, how many of the households in an area are renters rather than owners of their homes? 
+
+#### Jobs Paying Less than $15,000/year, by Place of Work
+```{r econ1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(percent_lowage_w, 1), "%",
+                           "\n", "Number: ", jobs_lowage_w))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = percent_lowage_w,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent\nof Workers\nin Low-wage\nJobs") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = percent_lowage_w, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Population") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+#### Median Household Income
+```{r econ2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Median Income: ", "$",
+                           round(medhhinc_est, 1)))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = medhhinc_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Median\nHousehold\nIncome") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = medhhinc_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(#limits = c(0, 100),
+                     #labels = scales::percent_format(scale = 1),
+                     name = "Median Income") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+#### Percent of Renting Households
+```{r econ3}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(renthhper_est, 1), "%"))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = renthhper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent\nof Renting\nHouseholds") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = renthhper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Population") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Racial and Ethnic Identity of Residents {.tabset}
+
+The figures below show the percent of residents who live in an area that identify as Black, as White, and as Hispanic or Latino. A long history of policies in the U.S. have shaped where people live, their access to education and occupations, and their ability to build wealth based on race. These histories can influence how exposed people are to the risks of climate change as well as the resources available to them to address those risks.
+
+#### Black or African American
+```{r race1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(blackper_est, 1), "%",
+                           "\n", "Number: ", blackpop_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = blackper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nWho Identify\nas Black") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = blackper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residents") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+#### White
+```{r race2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(whiteper_est, 1), "%",
+                           "\n", "Number: ", whitepop_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = whiteper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nWho Identify\nas White") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = whiteper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residents") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+####Hispanic or Latino
+```{r race3}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(ltnxper_est, 1), "%",
+                           "\n", "Number: ", ltnxpop_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = ltnxper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nResidents\nWho Identify\nas Hispanic") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = ltnxper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residents") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+### Household Infrastructure {.tabset}
+
+Household infrastructure varies across space and also has implications for the kinds of challenges posed by floods and other climate changes. These figures show two kinds of infrastructural assess: the percent of households with access to broadband internet and a computer at home a key resource for accessing information; and the percent of housing structures built before 1970. Homes built before 1970 pre-date the creation of the National Flood Insurance Program (1968) which required new construction to meet standards consistent with newly developed floodplain management ordinances. These homes are less likely to be designed or retrofitted for flooding.
+
+#### Households with Broadband Access
+```{r house1}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(onlineper_est, 1), "%",
+                           "\n", "Number: ", onlinehh_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = onlineper_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nHouseholds\nwith Broadband") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = onlineper_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Households") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
+#### Residential Buildings Built before 1970
+```{r house2}
+# change hover info
+bg_df <- bg_df %>% 
+  mutate(toolinfo = paste0(names, "\n", 
+                           "Percent: ",
+                           round(bldgage70per_est, 1), "%",
+                           "\n", "Number: ", bldgage70_est))
+
+# make map
+gg_map <- ggplot(bg_df) +
+  # annotation_map_tile(type = "cartolight") +
+  geom_sf_interactive(aes(fill = bldgage70per_est,
+                          tooltip = toolinfo, data_id = GEOID), 
+                      color = "white") +
+  scale_fill_gradient(low = "grey90", high = "darkgreen", 
+                      name = "Percent of\nBuildings\nBuilt\nBefore 1970") +
+  theme_void() +
+  theme(legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5),
+        legend.position = c(.8, .4))
+
+# make points
+gg_point <- ggplot(bg_df, aes(x = bldgage70per_est, 
+                              y = fct_rev(county),
+                              tooltip = toolinfo, 
+                              data_id = GEOID)) +
+  geom_point_interactive(size = 7, alpha = 0.2, color = "#674c47") +
+  scale_x_continuous(limits = c(0, 100),
+                     labels = scales::percent_format(scale = 1),
+                     name = "Percent of Residential Buildings") +
+  scale_y_discrete(name = "",
+                   labels = function(groups) str_wrap(groups, width = 10)) +
+  theme_minimal() +
+  theme(legend.title=element_blank(),
+        legend.text = element_text(size = 12),
+        axis.text.x = element_text(size = 11),
+        strip.background = element_rect(color = "black", fill = "#f1f1f1"),
+        strip.text.x = element_text(size = 12),
+        strip.placement = "outside")
+
+girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)), 
+       width_svg = 12, height_svg = 6) %>%
+  girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
+```
+
