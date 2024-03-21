@@ -433,7 +433,7 @@ girafe(ggobj = gg_point + gg_map + plot_layout(widths = c(0.45, 0.65)),
   girafe_options(opts_hover(css = "fill:darkorange;stroke:darkgreen;stroke-width:2px;"))
 ```
 
-####Hispanic or Latino
+#### Hispanic or Latino
 ```{r race3}
 # change hover info
 bg_df <- bg_df %>% 
