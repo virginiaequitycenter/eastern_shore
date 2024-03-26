@@ -13,6 +13,7 @@ library(tigris)
 options(tigris_use_cache = TRUE)
 library(highcharter)
 
+
 library(qs)
 
 source("functions/utils.R")
@@ -21,6 +22,8 @@ es_blkgrp <- readRDS("www/flood_composite_blkgrp.RDS")
 blkgrp_names <- read_excel("www/tract_names.xlsx", sheet = "blkgrp2020")
 pop <- read_csv("www/population_blkgrp.csv")
 # data <- read_csv("blkgrp_pop_data.csv")
+
+schools_sf <- st_read("../data/schools_sf.geojson")
 
 # make 10 percent columns
 flood_blkgrp <- es_blkgrp %>% 
@@ -144,7 +147,7 @@ flood_blkgrp_long <- flood_blkgrp %>%
 
 ui <- fluidPage(
   fluidRow(
-    column(2, 
+    column(1, 
            prettyRadioButtons(
              inputId = "metro_name",
              label = NULL,
@@ -158,11 +161,11 @@ ui <- fluidPage(
            ),
     column(3, plotlyOutput('heatmap', height = '600px')),
     column(5,leafletOutput('map', height = '550px')),
-    # column(5, highchartOutput('raceplot'))
+    column(3, highchartOutput('raceplot'))
     
   ),
   fluidRow(
-    column(4, highchartOutput('raceplot')),
+    column(4, ""),
     column(8, plotlyOutput('scatter', width = "100%"))
   )
   # selectInput('metro_name', label = 'Select flood risk', choices = input_choices, selected = "mean_HighTideFlooding"),
@@ -187,6 +190,11 @@ server <- function(input, output, session){
     
     pal <- colorNumeric('OrRd', c(0,100))
     
+    m <- m %>% 
+      mutate(label = paste0('Area: ', names, '<br/>',input$metro_name, ": ",round(m$entropy, digits = 2)))
+    
+    labs <- as.list(m$label)
+    
     map <- leaflet(m) %>%
       addProviderTiles('CartoDB.Positron') %>%
       # fitBounds(bbox[1], bbox[2], bbox[3], bbox[4]) %>% 
@@ -195,17 +203,66 @@ server <- function(input, output, session){
                   color = "#FFFFFF",
                   # stroke = FALSE, 
                   smoothFactor = 0.2, 
-                  fillColor = ~pal(entropy), fillOpacity = 0.7, 
+                  fillColor = ~pal(entropy), fillOpacity = 0.7,
+                  popup = lapply(labs, HTML),
+                  highlight = highlightOptions(
+                    weight = 3,
+                    fillOpacity = 1,
+                    bringToFront = FALSE),
                   layerId = ~tract_id) %>%
       addLegend(position = 'bottomright', pal = pal, 
                 # values = m$entropy, 
                 values = c(0,100),
                 labFormat = labelFormat(suffix = "%"),
-                title = input$metro_name)
+                title = input$metro_name) %>%
+      addCircles(data =  filter(schools_sf),
+                 group="Schools",
+                 popup = ~str_to_title(NAME)) %>%
+      addLayersControl(overlayGroups = c("Schools"),
+                       options = layersControlOptions(collapsed = FALSE), 
+                       position = "topright") %>% 
+      hideGroup("Schools") %>% 
+      addResetMapButton()
     
     map
     
   })
+  
+  ## Add Map Reset button function ----
+  addResetMapButton <- function(leaf) {
+    leaf %>%
+      addEasyButton(
+        easyButton(
+          icon = "ion-arrow-expand", 
+          title = "Reset View", 
+          onClick = JS(
+            "function(btn, map){ map.setView(map._initialCenter, map._initialZoom); }"
+          )
+        )
+      ) %>% 
+      htmlwidgets::onRender(
+        JS(
+          "function(el, x){ 
+            var map = this; 
+            map.whenReady(function(){
+              map._initialCenter = map.getCenter(); 
+              map._initialZoom = map.getZoom();
+            });
+          }"
+        )
+      )
+  }
+  
+  
+  # data <- reactiveValues(clickedShape=NULL)
+  # # observe the marker click info and print to console when it is changed.
+  # observeEvent(input$map_shape_click,{
+  #   data$clickedShape <- input$map_shape_click
+  #   print(data$clickedShape)}
+  # )
+  # observeEvent(input$map_click,{
+  #   data$clickedShape <- NULL
+  #   print(data$clickedShape)})
   
   # Click event for the map (will use to generate chart)
   click_tract <- eventReactive(input$map_shape_click, {
@@ -304,7 +361,9 @@ server <- function(input, output, session){
              # clickmode = "event+select",
              yaxis = list(title = input$metro_name), 
              margin = list(l = 100), 
-             font = list(family = 'Open Sans', size = 16)) %>%
+             font = list(
+               # family = 'Open Sans', 
+               size = 16)) %>%
       event_register("plotly_selecting")
     
   })  
@@ -335,7 +394,7 @@ server <- function(input, output, session){
       hc_subtitle(text = paste0(input$metro_name, ': ', as.character(round(td$entropy, 2)), '<br>Total Population:', as.character(td$totpop_est)),
                   align = 'left') %>%
       hc_add_theme(hc_theme_smpl()) %>%
-      hc_colors(c('#d01010', '#d01010')) %>%
+      hc_colors(c('#0073c1', '#0073c1')) %>%
       hc_tooltip(enabled = FALSE)
     
     
@@ -354,27 +413,155 @@ server <- function(input, output, session){
       flood_blkgrp_long %>% filter(group == "SeaLevelRise")
     } else { flood_blkgrp_long }
     
-    p <- ggplot(vars, aes(x=variable,y=names, key = GEOID)) + 
-      geom_tile(aes(fill = risk)) +
+    vars_acc <- vars %>% 
+      filter(COUNTYFP == "001")
+    
+    vars_nor <- vars %>% 
+      filter(COUNTYFP == "131")
+    
+    p <- ggplot(vars, aes(x=variable,y=names, key = GEOID, group = COUNTYFP, fill = risk)) +
+      # geom_tile(aes(fill = risk)) +
+      geom_tile(colour="gray90", size=1.5, stat="identity") +
+      # scale_fill_gradient(low = "white", high = "dodgerblue", space = "Lab", na.value = "gray90", guide = "colourbar") +
+      scale_x_discrete(expand = c(0, 0)) +
+      scale_y_discrete(expand = c(0, 0)) +
       scale_fill_distiller(palette = "OrRd", direction = 1)+
+      facet_grid(COUNTYFP ~ ., 
+                 scales = "free_y", 
+                 space = "free_y",
+                 # axes = "all", axis.labels = "all",
+                 switch = "both",
+                 labeller = as_labeller(c("001"='Accomack County', "131"='Northhampton'))) +
+      # facet_wrap(~COUNTYFP, ncol=1, strip.position = "bottom", scales = "free_x")
+      # facet_wrap(~COUNTYFP, ncol=1, switch='y') +
       theme(legend.position="none",
-            axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-    
-    ggplotly(p) %>% 
-      layout(xaxis = list(side = "top", title=""), 
+            axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+            axis.text = element_text(size = 8),
+            panel.spacing = unit(0, "lines"), 
+            strip.background = element_blank(),
+            strip.placement = "outside")
+
+    ggplotly(p) %>%
+      layout(xaxis = list(side = "top", title=""),
                       yaxis = list(title = ""),
-                      showlegend = FALSE) %>% 
+                      showlegend = FALSE) %>%
       config(displayModeBar = FALSE)
-    
-    g <- ggplotly(p, source = 'source2', tooltip = "text") %>% 
-      layout(clickmode = 'event+select', 
-             xaxis = list(side = "top", title=""), 
+
+    g1 <- ggplotly(p, source = 'source2', tooltip = "text") %>%
+      layout(clickmode = 'event+select',
+             xaxis = list(side = "top", title=""),
              yaxis = list(title = ""),
              showlegend = FALSE,
-             margin = list(l = 100), 
-             font = list(family = 'Open Sans', size = 16)) %>% 
+             margin = list(l = 100)) %>%
       config(displayModeBar = FALSE) %>%
       event_register("plotly_selecting")
+    
+    # p <- ggplot(vars, aes(x=variable,y=names, key = GEOID)) + 
+    #   geom_tile(aes(fill = risk)) +
+    #   scale_fill_distiller(palette = "OrRd", direction = 1)+
+    #   theme(legend.position="none",
+    #         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+    #         axis.text = element_text(size = 8))
+    # 
+    # ggplotly(p) %>% 
+    #   layout(xaxis = list(side = "top", title=""), 
+    #                   yaxis = list(title = ""),
+    #                   showlegend = FALSE) %>% 
+    #   config(displayModeBar = FALSE)
+    # 
+    # g1 <- ggplotly(p, source = 'source2', tooltip = "text") %>% 
+    #   layout(clickmode = 'event+select', 
+    #          xaxis = list(side = "top", title=""), 
+    #          yaxis = list(title = ""),
+    #          showlegend = FALSE,
+    #          margin = list(l = 100)) %>% 
+    #   config(displayModeBar = FALSE) %>%
+    #   event_register("plotly_selecting")
+    
+    
+    # new version with split counties
+    
+    # gg1 <- ggplotly((
+    #   ggplot(vars_acc, 
+    #          aes(x=variable,y=names
+    #              # label = Tree, 
+    #              # text = stringr::str_wrap(
+    #              #   string = tooltip,
+    #              #   width = 25,
+    #              #   indent = 1, # let's add extra space from the margins
+    #              #   exdent = 1  # let's add extra space from the margins
+    #              # )
+    #              )
+    #   ) + 
+    #     geom_tile(aes(fill = risk)) +
+    #     scale_fill_distiller(palette = "OrRd", direction = 1)+
+    #     theme_minimal()+
+    #       theme(legend.position="none",
+    #             axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+    #             axis.text = element_text(size = 8)))
+    # ) %>%
+    #   layout(xaxis = list(side = "top", title=""), 
+    #                            yaxis = list(title = ""),
+    #                            showlegend = FALSE) %>%
+    #            config(displayModeBar = FALSE) %>% 
+    #   add_annotations(
+    #       text = "Accomack County",
+    #       x = 0,
+    #       y = 1,
+    #       yref = "paper",
+    #       xref = "paper",
+    #       xanchor = "center",
+    #       yanchor = "bottom",
+    #       yshift = 0,
+    #       xshift = -70,
+    #       showarrow = FALSE,
+    #       font = list(size = 12)
+    #     )
+    # 
+    # gg2 <- ggplotly((
+    #   ggplot(vars_nor, 
+    #          aes(x=variable,y=names
+    #              # label = Tree, 
+    #              # text = stringr::str_wrap(
+    #              #   string = tooltip,
+    #              #   width = 25,
+    #              #   indent = 1, # let's add extra space from the margins
+    #              #   exdent = 1  # let's add extra space from the margins
+    #              # )
+    #          )
+    #   ) + 
+    #     geom_tile(aes(fill = risk)) +
+    #     scale_fill_distiller(palette = "OrRd", direction = 1)+
+    #     theme_minimal()+
+    #     theme(legend.position="none",
+    #           axis.text.x = element_blank(),
+    #           # axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+    #           axis.text = element_text(size = 8))
+    #   )
+    # ) %>%
+    #   layout(xaxis = list(side = "top", title=""), 
+    #          yaxis = list(title = ""),
+    #          showlegend = FALSE) %>%
+    #   config(displayModeBar = FALSE) %>% 
+    #   add_annotations(
+    #     text = "Northampton County",
+    #     x = 0,
+    #     y = 1,
+    #     yref = "paper",
+    #     xref = "paper",
+    #     xanchor = "center",
+    #     yanchor = "bottom",
+    #     yshift = 0,
+    #     xshift = -70,
+    #     showarrow = FALSE,
+    #     font = list(size = 12)
+    #   )
+    # 
+    # subplot(gg1, gg2, nrows = 2, 
+    #         margin = c(0.02, 0.02, 0.05, 0.01), # c(left, right, top, bottom )
+    #         # shareX = TRUE,
+    #         titleX = FALSE)
+
 
  } )
   
