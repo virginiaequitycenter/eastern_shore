@@ -229,37 +229,46 @@ ui <- fluidPage(
                         choices = c("blackper_est", "ltnxper_est", "whiteper_est"), 
                         selected = "blackper_est")
            ),
-    column(6, 
-           tabsetPanel(
-             tabPanel("Relationship", 
-                      highchartOutput('scatter', height = '550px')
-                      # fluidRow(
-                      #   column(8,
-                      # plotlyOutput('scatter', height = '550px')
-                      #          ),
-                      #   column(4, "")
-                      #   )
-                      # )
-                      
-             ),
-             tabPanel("Demographics Map",
-                      # fluidRow(
-                      #   column(6, 
-                               leafletOutput('map2', height = '550px')
-                      #          ),
-                      #   column(6, highchartOutput('raceplot'))
-                      # )
-             )
-           )
-    ),
-    column(4,
+    column(10, 
            fluidRow(
-             column(12, highchartOutput('raceplot'))
-             ),
+             column(6, highchartOutput('scatter', height = '550px')),
+             column(6, leafletOutput('map2', height = '550px'))
+           ),
            fluidRow(
-             column(12, highchartOutput('ageplot'))
+             column(4, highchartOutput('raceplot')),
+             column(4, highchartOutput('ageplot')),
+             column(4, "")
            )
+           # tabsetPanel(
+           #   tabPanel("Relationship", 
+           #            highchartOutput('scatter', height = '550px')
+           #            # fluidRow(
+           #            #   column(8,
+           #            # plotlyOutput('scatter', height = '550px')
+           #            #          ),
+           #            #   column(4, "")
+           #            #   )
+           #            # )
+           #            
+           #   ),
+           #   tabPanel("Demographics Map",
+           #            # fluidRow(
+           #            #   column(6, 
+           #                     leafletOutput('map2', height = '550px')
+           #            #          ),
+           #            #   column(6, highchartOutput('raceplot'))
+           #            # )
+           #   )
+           # )
     )
+    # column(4,
+    #        fluidRow(
+    #          column(12, highchartOutput('raceplot'))
+    #          ),
+    #        fluidRow(
+    #          column(12, highchartOutput('ageplot'))
+    #        )
+    # )
 
   ) # end fluidRow
 ) # end fluidPage
@@ -584,7 +593,9 @@ server <- function(input, output, session){
       ) %>% 
       hc_plotOptions(
         series = list(states = list(inactive = list(opacity = 1)))
-      )
+      ) %>% 
+      hc_title(text = paste0('Relationship: ', input$pop_name, ' and ', input$metro_name),
+               align = 'left')
       
     chart
   })
@@ -679,11 +690,15 @@ server <- function(input, output, session){
       hc_yAxis(
         title = list(text = ""),
         reversed = TRUE, 
-        # offset = 20,
+        offset = -10,
         # tickLength = 0,
         # gridLineWidth = 0,
         # minorGridLineWidth = 0,
-        labels = list(style = list(fontSize = "9px"),
+        labels = list(style = list(fontSize = "10px",
+                                   width = 140,
+                                   textOverflow = 'ellipsis'
+                                   # whiteSpace = 'nowrap'
+                                   ),
                       align = "right",
                       padding = 0,
                       step = 1)
@@ -694,7 +709,13 @@ server <- function(input, output, session){
         align = "center",
         valueDecimals = 0,
         margin = 8
-      ) %>% 
+      ) %>%
+      hc_plotOptions(series = list(pointWidth=1)) %>%
+      # hc_tooltip(
+      #   formatter = JS("function(){
+      #                       return ('<strong>Area:</strong> ' + this.point.names +  ' <br>' + this.point.yname + ': ' + this.risk + ' <br>' + this.point.xname + ': '  + this.x)
+      #                       }")
+      # ) %>% 
       hc_size(height = 600)
       # hc_chart(type = 'heatmap') %>%
       # hc_legend(enabled = FALSE) %>%
