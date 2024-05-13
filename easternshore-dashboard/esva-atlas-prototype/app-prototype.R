@@ -136,7 +136,7 @@ ui <- page_fluid(
   card(
     height = 800,
     # full_screen = TRUE, # adds expand button
-    card_header("Map"),
+    # card_header("Map"),
     layout_sidebar(
       fillable = TRUE,
       sidebar = sidebar(
@@ -158,7 +158,7 @@ ui <- page_fluid(
   ), # end card
   card(
     height = 600,
-    card_header("Population Characteristics"),
+    # card_header("Population Characteristics"),
     layout_sidebar(
       fillable = TRUE,
       sidebar = sidebar(
@@ -190,9 +190,13 @@ server <- function(input, output, session){
     
   })
   
-  # listen_indicator1 <- reactive({
-  #   list(input$variable)
-  # })
+  listen_indicator1 <- reactive({
+    list(input$variable)
+  })
+  
+  listen_indicator2 <- reactive({
+    list(input$pop_name)
+  })
   
   # Draw the map without selected tracts
   
@@ -274,6 +278,61 @@ server <- function(input, output, session){
       )
   }
   
+  # Click event for the map (will use to generate chart)
+  click_tract <- eventReactive(input$map_shape_click, {
+    
+    x <- input$map_shape_click
+    
+    y <- x$id
+    
+    return(y)
+    
+  })
+  
+  observeEvent(list(click_tract(), listen_indicator1(), listen_indicator2()), {
+    
+    # Add the clicked tract to the map in aqua, and remove when a new one is clicked
+    map <- leafletProxy('map') %>%
+      removeShape('htract') %>%
+      addPolygons(data = filter(df(), tract_id == click_tract()), fill = FALSE,
+                  color = '#00FFFF', opacity = 1, layerId = 'htract',
+                  weight = 1.6)
+    
+    # Add clicket tract point to scatter, remove when new one is clicked 
+    d <- filter(df(), tract_id == click_tract()) %>% 
+      st_drop_geometry()
+    d$xname <- input$pop_name
+    d$ylabel <- input$variable
+    
+    scatter <- highchartProxy("scatter") %>%
+      hcpxy_remove_series(id = "addpoint") %>% 
+      hcpxy_add_series(
+        data = d, 
+        "scatter",
+        hcaes(
+          id=tract_id,
+          x=.data[[input$pop_name]],
+          y = .data[[input$variable]]
+        ),
+        marker = list(
+          symbol = "circle",
+          radius = 8,
+          lineWidth = 2,
+          lineColor = "#00FFFF"
+        ),
+        id = "addpoint"
+      )
+    
+    
+  })
+  
+  tract_data <- reactive({
+    
+    # Fetch data for the clicked tract
+    return(filter(df(), tract_id == click_tract()))
+    
+  })
+  
   
   output$heatmap <- renderHighchart({
     sel <- input$scenario
@@ -294,171 +353,119 @@ server <- function(input, output, session){
     
     # highchart heatmap using the hc_add_series for each storm surge variable (separate series)
     # axis labels not working - labels showing index value instead
-    chart_add_series <- highchart() %>% 
-      hc_chart(type = "heatmap") %>%
-      hc_add_series(
-        data = heat_dat %>% filter(variable == "Peak Surge"),
-        type = "heatmap",
-        animation=FALSE,
-        mapping =
-          hcaes(
-            x=variable,
-            y = names,
-            value = round(risk, digits = 2)),
-        id = "peak",
-        xAxis = 0,
-        yAxis = 0,
-        name = "Peak Surge"
-      ) %>%
-      hc_add_series(
-        data = heat_dat %>% filter(variable == "Mean Surge"),
-        type = "heatmap",
-        animation=FALSE,
-        mapping =
-          hcaes(
-            x=variable,
-            y = names,
-            value = round(risk, digits = 2)
-          ),
-        id= "mean",
-        className = "mean",
-        colorAxis = 1,
-        xAxis = 1,
-        yAxis = 0
-      ) %>%
-      hc_add_series(
-        data = heat_dat %>% filter(variable == "Inundation Area Fraction"),
-        type = "heatmap",
-        animation=FALSE,
-        mapping =
-          hcaes(
-            x=variable,
-            y = names,
-            value = round(risk, digits = 2)
-          ),
-        id= "fraction",
-        className = "fract",
-        colorAxis = 2,
-        xAxis = 2,
-        yAxis = 0
-      ) %>%
-      hc_colorAxis(
-        list(
-          min = 0,
-          max = risk_max,
-          stops = color_stops(9, OrRdPal)
-        ),
-        list(
-          min = 0,
-          max = risk_max,
-          stops = color_stops(9, OrRdPal)
-        ),
-        list(
-          min = 0,
-          max = max_ind,
-          stops = color_stops(9, OrRdPal)
-        )
-      ) %>% 
-      hc_xAxis(
-        list(
-          type="category",
-          categories = list("Peak Surge"),
-          title = list(enabled = FALSE),
-          opposite = TRUE,
-          labels = list(rotation = -90
-                        # format = '{text}'
-                        # formatter = JS("function(){
-                        #     return (series.name)
-                        #     }")
-                        ),
-          width = '33%',
-          offset = 0
-        ),
-        list(
-          type="category",
-          title = list(text = ""),
-          opposite = TRUE,
-          labels = list(rotation = -90),
-          width = '33%',
-          left = '33.33%',
-          offset = 0
-        ),
-        list(
-          type="category",
-          title = list(text = ""),
-          opposite = TRUE,
-          labels = list(rotation = -90),
-          width = '33%',
-          left = '66.66%',
-          offset = 0
-        )
-        ) %>%
-      hc_yAxis(
-        title = list(text = "",
-                     fontSize = "10px"),
-        reversed = TRUE,
-        offset = -10,
-        labels = list(style = list(fontSize = "11px",
-                                   width = 120,
-                                   textOverflow = 'ellipsis'
-                                   # whiteSpace = 'nowrap'
-                                   ),
-        rotation = 0,
-        align = "right",
-        padding = 0,
-        step = 1)) %>%
-      hc_plotOptions(series = list(states = list(inactive = list(opacity = 1)),
-                                   pointWidth=1),
-                     column = list(cropThreshold = 1000,
-                                   stacking = "normal")) %>%
-      hc_tooltip(
-        formatter = JS("function(){
-                            return ('<strong>Area:</strong> ' + this.point.names +  ' <br><strong>' + this.point.variable + ':</strong> '  + this.point.value)
-                            }")
-        ) %>%
-      hc_legend(enabled = FALSE)
-    
-    chart_add_series
-    
-    # highchart heatmap using hchart, all data as one series
-    # axis labels working
-    
-    # chart_heat <- hchart(heat_dat,
-    #                 "heatmap",
-    #                 hcaes(x = variable,
-    #                       y = names,
-    #                       value = round(risk, digits = 2)),
-    #                 name = "Risk",
-    #                 showInLegend = c(FALSE)) %>%
-    #   hc_colorAxis(
-    #     min = 0,
-    #     max = risk_max,
-    #     stops = color_stops(9, OrRdPal)
+    # chart_add_series <- highchart() %>% 
+    #   hc_chart(type = "heatmap") %>%
+    #   hc_add_series(
+    #     data = heat_dat %>% filter(variable == "Peak Surge"),
+    #     type = "heatmap",
+    #     animation=FALSE,
+    #     mapping =
+    #       hcaes(
+    #         x=variable,
+    #         y = names,
+    #         value = round(risk, digits = 2)),
+    #     id = "peak",
+    #     xAxis = 0,
+    #     yAxis = 0,
+    #     name = "Peak Surge"
     #   ) %>%
-    #   hc_xAxis(type="category",
-    #     title = list(text = ""),
-    #            opposite = TRUE,
-    #     labels = list(rotation = -90)) %>%
+    #   hc_add_series(
+    #     data = heat_dat %>% filter(variable == "Mean Surge"),
+    #     type = "heatmap",
+    #     animation=FALSE,
+    #     mapping =
+    #       hcaes(
+    #         x=variable,
+    #         y = names,
+    #         value = round(risk, digits = 2)
+    #       ),
+    #     id= "mean",
+    #     className = "mean",
+    #     colorAxis = 1,
+    #     xAxis = 1,
+    #     yAxis = 0
+    #   ) %>%
+    #   hc_add_series(
+    #     data = heat_dat %>% filter(variable == "Inundation Area Fraction"),
+    #     type = "heatmap",
+    #     animation=FALSE,
+    #     mapping =
+    #       hcaes(
+    #         x=variable,
+    #         y = names,
+    #         value = round(risk, digits = 2)
+    #       ),
+    #     id= "fraction",
+    #     className = "fract",
+    #     colorAxis = 2,
+    #     xAxis = 2,
+    #     yAxis = 0
+    #   ) %>%
+    #   hc_colorAxis(
+    #     list(
+    #       min = 0,
+    #       max = risk_max,
+    #       stops = color_stops(9, OrRdPal)
+    #     ),
+    #     list(
+    #       min = 0,
+    #       max = risk_max,
+    #       stops = color_stops(9, OrRdPal)
+    #     ),
+    #     list(
+    #       min = 0,
+    #       max = max_ind,
+    #       stops = color_stops(9, OrRdPal)
+    #     )
+    #   ) %>% 
+    #   hc_xAxis(
+    #     list(
+    #       type="category",
+    #       categories = list("Peak Surge"),
+    #       title = list(enabled = FALSE),
+    #       opposite = TRUE,
+    #       labels = list(rotation = -90
+    #                     # format = '{text}'
+    #                     # formatter = JS("function(){
+    #                     #     return (series.name)
+    #                     #     }")
+    #                     ),
+    #       width = '33%',
+    #       offset = 0
+    #     ),
+    #     list(
+    #       type="category",
+    #       title = list(text = ""),
+    #       opposite = TRUE,
+    #       labels = list(rotation = -90),
+    #       width = '33%',
+    #       left = '33.33%',
+    #       offset = 0
+    #     ),
+    #     list(
+    #       type="category",
+    #       title = list(text = ""),
+    #       opposite = TRUE,
+    #       labels = list(rotation = -90),
+    #       width = '33%',
+    #       left = '66.66%',
+    #       offset = 0
+    #     )
+    #     ) %>%
     #   hc_yAxis(
     #     title = list(text = "",
     #                  fontSize = "10px"),
     #     reversed = TRUE,
     #     offset = -10,
-    #     # tickWidth = 1,
-    #     # tickLength = 0,
-    #     # gridLineWidth = 0,
-    #     # minorGridLineWidth = 0,
     #     labels = list(style = list(fontSize = "11px",
     #                                width = 120,
     #                                textOverflow = 'ellipsis'
     #                                # whiteSpace = 'nowrap'
     #                                ),
-    #                   rotation = 0,
-    #                   align = "right",
-    #                   padding = 0,
-    #                   step = 1
-    #                   )
-    #   ) %>%
+    #     rotation = 0,
+    #     align = "right",
+    #     padding = 0,
+    #     step = 1)) %>%
     #   hc_plotOptions(series = list(states = list(inactive = list(opacity = 1)),
     #                                pointWidth=1),
     #                  column = list(cropThreshold = 1000,
@@ -467,11 +474,63 @@ server <- function(input, output, session){
     #     formatter = JS("function(){
     #                         return ('<strong>Area:</strong> ' + this.point.names +  ' <br><strong>' + this.point.variable + ':</strong> '  + this.point.value)
     #                         }")
-    #   ) %>%
+    #     ) %>%
     #   hc_legend(enabled = FALSE)
+    # 
+    # chart_add_series
+    
+    # highchart heatmap using hchart, all data as one series
+    # axis labels working
+    
+    chart_heat <- hchart(heat_dat,
+                    "heatmap",
+                    hcaes(x = variable,
+                          y = names,
+                          value = round(risk, digits = 2)),
+                    name = "Risk",
+                    showInLegend = c(FALSE)) %>%
+      hc_colorAxis(
+        min = 0,
+        max = risk_max,
+        stops = color_stops(9, OrRdPal)
+      ) %>%
+      hc_xAxis(type="category",
+        title = list(text = ""),
+               opposite = TRUE,
+        labels = list(rotation = -90)) %>%
+      hc_yAxis(
+        title = list(text = "",
+                     fontSize = "10px"),
+        reversed = TRUE,
+        offset = -10,
+        # tickWidth = 1,
+        # tickLength = 0,
+        # gridLineWidth = 0,
+        # minorGridLineWidth = 0,
+        labels = list(style = list(fontSize = "11px",
+                                   width = 120,
+                                   textOverflow = 'ellipsis'
+                                   # whiteSpace = 'nowrap'
+                                   ),
+                      rotation = 0,
+                      align = "right",
+                      padding = 0,
+                      step = 1
+                      )
+      ) %>%
+      hc_plotOptions(series = list(states = list(inactive = list(opacity = 1)),
+                                   pointWidth=1),
+                     column = list(cropThreshold = 1000,
+                                   stacking = "normal")) %>%
+      hc_tooltip(
+        formatter = JS("function(){
+                            return ('<strong>Area:</strong> ' + this.point.names +  ' <br><strong>' + this.point.variable + ':</strong> '  + this.point.value)
+                            }")
+      ) %>%
+      hc_legend(enabled = FALSE)
 
 
-    # chart_heat
+    chart_heat
     
     
   })
