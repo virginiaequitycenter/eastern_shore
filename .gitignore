@@ -14,3 +14,11 @@ data.zip
 .DS_Store
 .Rhistory
 .Rproj.user/
+
+
+# workshop files ai and indd 
+geography/ES_Census_Poster*
+geography/ES_Mapping_Station*
+geography/es_tracts.ai
+geography/maps/
+materials/winterworkshop_2023/ESVA_Map.svg
