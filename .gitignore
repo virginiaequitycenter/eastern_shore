@@ -6,7 +6,7 @@ dataraw/
 # ignore data files - rm *.RData when updating app data
 *.gz
 *.RDS
-*.geojson
+# *.geojson
 *.RData 
 data.zip
 
