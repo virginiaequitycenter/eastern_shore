@@ -125,7 +125,7 @@ storm_blkgrp_long <- storm_blkgrp %>%
                            labels = c("Peak Surge", "Mean Surge", "Inundation Area Fraction", "Peak Surge", "Mean Surge", "Inundation Area Fraction")
          ),
          locality = case_when(COUNTYFP == "001" ~ "Accomack",
-                              COUNTYFP == "131" ~ "Northhampton")
+                              COUNTYFP == "131" ~ "Northampton")
   )  
 
 # brewer.pal(n=9,"OrRd")
@@ -145,7 +145,14 @@ ui <- page_fluid(
           "Storm Surge",
           choices = c("PeakSurge_m", "MeanSurge_m", "InundationAreaFraction"),
           selected = "PeakSurge_m"
-        )
+        ),
+        checkboxGroupInput(
+          inputId = "locality",
+          label = "Select Counties:",
+          choices = c("Accomack" = "Accomack",
+                      "Northampton" = "Northampton"),
+          selected = c("Accomack", "Northampton"),
+          inline = TRUE)
       ),
       layout_columns(
         col_widths = c(12,3,9),
@@ -184,20 +191,27 @@ server <- function(input, output, session){
     d <- switch(input$scenario,
                 "Scenario 1" = storm_dat,
                 "Scenario 2050" = storm_2050_dat)
+      
+    d <- d %>% filter(locality %in% input$locality)
     d[[input$variable]]
     
     print(d)
     
   })
   
-  listen_indicator1 <- reactive({
-    list(input$variable)
+  dl <- reactive({
+    d <- storm_blkgrp_long %>% 
+      st_drop_geometry()
+      
+    d <- d %>% filter(locality %in% input$locality)
   })
   
-  listen_indicator2 <- reactive({
-    list(input$pop_name)
+  # reactive function to detect when variable 1, variable 2, or locality selection changes
+  listen_closely <- reactive({
+    list(input$variable, input$pop_name, input$locality)
   })
   
+  # Map ----
   # Draw the map without selected tracts
   
   output$map <- renderLeaflet({
@@ -253,7 +267,7 @@ server <- function(input, output, session){
 
   })
   
-  ## Add Map Reset button function ----
+  # Add Map Reset button function
   addResetMapButton <- function(leaf) {
     leaf %>%
       addEasyButton(
@@ -289,7 +303,7 @@ server <- function(input, output, session){
     
   })
   
-  observeEvent(list(click_tract(), listen_indicator1(), listen_indicator2()), {
+  observeEvent(list(click_tract(), listen_closely()), {
     
     # Add the clicked tract to the map in aqua, and remove when a new one is clicked
     map <- leafletProxy('map') %>%
@@ -333,16 +347,19 @@ server <- function(input, output, session){
     
   })
   
+  # Heatmap ----
   
   output$heatmap <- renderHighchart({
+    d <- st_drop_geometry(dl())
+    
     sel <- input$scenario
     
-    risk_max <- max(storm_blkgrp_long$risk, na.rm=TRUE)
+    risk_max <- max(d$risk, na.rm=TRUE)
     
-    ind <- storm_blkgrp_long %>% filter(variable == "Inundation Area Fraction")
+    ind <- d %>% filter(variable == "Inundation Area Fraction")
     max_ind <- max(ind$risk, na.rm=TRUE)
     
-    heat_dat <- storm_blkgrp_long %>%
+    heat_dat <- d %>%
       group_by(variable, names)
     
     heat_dat <- if(sel == "Scenario 2050"){
@@ -350,6 +367,7 @@ server <- function(input, output, session){
     } else if(sel == "Scenario 1"){
       heat_dat %>% filter(group == "Scenario1")
     }
+    
     
     # highchart heatmap using the hc_add_series for each storm surge variable (separate series)
     # axis labels not working - labels showing index value instead
@@ -536,6 +554,7 @@ server <- function(input, output, session){
   })
   
   
+  # Scatterplot ----
   # Here, we draw the scatterplot with highchart
   
   output$scatter <- renderHighchart({
@@ -543,6 +562,77 @@ server <- function(input, output, session){
     
     d$xname <- input$pop_name
     d$ylabel <- input$variable
+    
+    # x_avg <- d %>% select(input$pop_name)
+    # x_avg <- colMeans(x_avg, na.rm = TRUE)
+    xmean <- mean(d[[input$pop_name]], na.rm = TRUE)
+    print(xmean)
+    
+    ymean <- mean(d[[input$variable]], na.rm = TRUE)
+    print(ymean)
+    
+    xmean_label <- list(
+      verticalAlign = 'top',
+      align = "left",
+      point = list(x = xmean, y = 0, xAxis= 0),
+      text = paste0("Higher ", input$pop_name, " →")
+      # overflow = 'allow'
+      # crop = TRUE
+    )
+    
+    xmean_label2 <- list(
+      verticalAlign = 'top',
+      align = "right",
+      point = list(x = xmean, y = 0, xAxis= 0),
+      text = paste0("← Lower ", input$pop_name)
+      # overflow = 'allow',
+      # crop = FALSE
+    )
+    
+    ymean_label <- list(
+      verticalAlign = 'bottom',
+      align = 'right',
+      point = list(x = 100, y = ymean, xAxis= 0, yAxis= 0),
+      text = paste0("↑ Higher ", input$variable),
+      distance = 5
+      # overflow = 'allow',
+      # crop = FALSE
+    )
+    
+    ymean_label2 <- list(
+      verticalAlign = 'top',
+      align = 'right',
+      point = list(x = 100, y = ymean, xAxis= 0, yAxis= 0),
+      text = paste0("↓ Lower ", input$variable),
+      distance = -25
+      # overflow = 'allow',
+      # crop = FALSE
+    )
+    
+    plotlineX <- list(
+      # color = "black", 
+      dashStyle = "LongDash",
+      value = xmean, 
+      width = 2, 
+      zIndex = 1,
+      label = list(
+        text = paste0("Average ", input$pop_name), verticalAlign = "bottom",
+        style = list(color = "#606060"), textAlign = "left",
+        rotation = -90, y = 0, x = -3
+      )
+    )
+    
+    plotlineY <- list(
+      dashStyle = "LongDash",
+      value = ymean, 
+      width = 2, 
+      zIndex = 1,
+      label = list(
+        text = paste0("Average ", input$variable), verticalAlign = "top",
+        style = list(color = "#606060"), textAlign = "left",
+        rotation = 0, y = -3, x = 0
+      )
+    )
     
     chart <- highchart() %>% 
       hc_legend(enabled = FALSE) %>%
@@ -566,8 +656,25 @@ server <- function(input, output, session){
       ) %>% 
       hc_xAxis(min = 0,
                max = 100,
-               title = list(text = input$pop_name)) %>%
-      hc_yAxis(title = list(text = input$variable)) %>% 
+               title = list(text = input$pop_name),
+               plotLines = list(plotlineX)
+               ) %>%
+      hc_yAxis(title = list(text = input$variable),
+               plotLines = list(plotlineY)) %>% 
+      hc_annotations(
+        list(
+          labelOptions = list(
+            backgroundColor = "white",
+            borderWidth = 0,
+            # padding = 0,
+            allowOverlap = TRUE
+            # x = 0,
+            # y = 0
+          ),
+          labels = list(xmean_label, xmean_label2, ymean_label, ymean_label2),
+          zIndex = 1
+        )
+      ) %>% 
       hc_add_theme(hc_theme_smpl()) %>% 
       hc_colorAxis(
         # min = 0,
