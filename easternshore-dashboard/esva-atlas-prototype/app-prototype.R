@@ -27,7 +27,6 @@ blkgrp_geo <- blkgrp_geo %>%
   subset(COUNTYFP %in% c("001", "131"))
 blkgrp_geo <- st_transform(blkgrp_geo, 4326)
 
-
 blkgrp_names <- blkgrp_names %>% 
   mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
          tract = str_pad(tract, width = 6, side = "left", pad = "0"),
@@ -101,6 +100,15 @@ storm_dat <- storm_blkgrp %>%
          totpop_est, whiteper_est, blackper_est, ltnxper_est, remainper_est,
          geometry)
 
+names(storm_dat) = c(
+  "GEOID", "tract_id", "locality", "localityfips", "tract", "blkgrp", "names", 
+  "Peak Surge", "Mean Surge", "Inundation Area Fraction", 
+  "SurgeMax", "SurgeMin", "InundationMax", "InundationMin", "totpop_est", 
+  "Percent White Population", "Percent Black Population", "Percent Hispanic Population", 
+  "remainper_est",
+  "geometry"
+)
+
 storm_2050_dat <- storm_blkgrp %>% 
   mutate(tract_id = GEOID,
          PeakSurge_m = PeakSurge2050_m, 
@@ -111,6 +119,15 @@ storm_2050_dat <- storm_blkgrp %>%
          SurgeMax, SurgeMin, InundationMax, InundationMin,
          totpop_est, whiteper_est, blackper_est, ltnxper_est, remainper_est,
          geometry)  
+
+names(storm_2050_dat) = c(
+  "GEOID", "tract_id", "locality", "localityfips", "tract", "blkgrp", "names", 
+  "Peak Surge", "Mean Surge", "Inundation Area Fraction", 
+  "SurgeMax", "SurgeMin", "InundationMax", "InundationMin", "totpop_est", 
+  "Percent White Population", "Percent Black Population", "Percent Hispanic Population", 
+  "remainper_est",
+  "geometry"
+)
 
 
 ## reshape for heatmap ----
@@ -143,8 +160,8 @@ ui <- page_fluid(
         radioButtons(
           "variable",
           "Storm Surge",
-          choices = c("PeakSurge_m", "MeanSurge_m", "InundationAreaFraction"),
-          selected = "PeakSurge_m"
+          choices = c("Peak Surge", "Mean Surge", "Inundation Area Fraction"),
+          selected = "Peak Surge"
         ),
         checkboxGroupInput(
           inputId = "locality",
@@ -171,12 +188,12 @@ ui <- page_fluid(
       sidebar = sidebar(
         selectInput('pop_name', 
                     label = 'Population Characteristics', 
-                    choices = c("blackper_est", "ltnxper_est", "whiteper_est"), 
-                    selected = "blackper_est"
+                    choices = c("Percent Black Population", "Percent Hispanic Population", "Percent White Population"), 
+                    selected = "Percent Black Population"
         )
       ),
       layout_columns(
-        col_widths = c(8,4),
+        col_widths = c(10,2),
         row_heights = c(1),
         highchartOutput('scatter')
       )
@@ -555,7 +572,6 @@ server <- function(input, output, session){
   
   
   # Scatterplot ----
-  # Here, we draw the scatterplot with highchart
   
   output$scatter <- renderHighchart({
     d <- st_drop_geometry(df())
@@ -563,51 +579,11 @@ server <- function(input, output, session){
     d$xname <- input$pop_name
     d$ylabel <- input$variable
     
-    # x_avg <- d %>% select(input$pop_name)
-    # x_avg <- colMeans(x_avg, na.rm = TRUE)
     xmean <- mean(d[[input$pop_name]], na.rm = TRUE)
     print(xmean)
     
     ymean <- mean(d[[input$variable]], na.rm = TRUE)
     print(ymean)
-    
-    xmean_label <- list(
-      verticalAlign = 'top',
-      align = "left",
-      point = list(x = xmean, y = 0, xAxis= 0),
-      text = paste0("Higher ", input$pop_name, " →")
-      # overflow = 'allow'
-      # crop = TRUE
-    )
-    
-    xmean_label2 <- list(
-      verticalAlign = 'top',
-      align = "right",
-      point = list(x = xmean, y = 0, xAxis= 0),
-      text = paste0("← Lower ", input$pop_name)
-      # overflow = 'allow',
-      # crop = FALSE
-    )
-    
-    ymean_label <- list(
-      verticalAlign = 'bottom',
-      align = 'right',
-      point = list(x = 100, y = ymean, xAxis= 0, yAxis= 0),
-      text = paste0("↑ Higher ", input$variable),
-      distance = 5
-      # overflow = 'allow',
-      # crop = FALSE
-    )
-    
-    ymean_label2 <- list(
-      verticalAlign = 'top',
-      align = 'right',
-      point = list(x = 100, y = ymean, xAxis= 0, yAxis= 0),
-      text = paste0("↓ Lower ", input$variable),
-      distance = -25
-      # overflow = 'allow',
-      # crop = FALSE
-    )
     
     plotlineX <- list(
       # color = "black", 
@@ -643,8 +619,8 @@ server <- function(input, output, session){
         mapping = 
           hcaes(
             id=tract_id,
-            x=.data[[input$pop_name]],
-            y = .data[[input$variable]],
+            x=round(.data[[input$pop_name]], 2),
+            y = round(.data[[input$variable]], 2),
             names = names,
             xname = xname,
             ylabel = ylabel
@@ -663,6 +639,8 @@ server <- function(input, output, session){
                plotLines = list(plotlineY)) %>% 
       hc_annotations(
         list(
+          zIndex = 1,
+          draggable = "",
           labelOptions = list(
             backgroundColor = "white",
             borderWidth = 0,
@@ -671,8 +649,36 @@ server <- function(input, output, session){
             # x = 0,
             # y = 0
           ),
-          labels = list(xmean_label, xmean_label2, ymean_label, ymean_label2),
-          zIndex = 1
+          labels = list(
+            list(
+              verticalAlign = 'top',
+              align = "left",
+              point = list(x = xmean, y = 0, xAxis= 0),
+              text = paste0("Higher ", input$pop_name, " →")
+              # overflow = 'allow'
+              # crop = FALSE
+            ),
+            list(
+              verticalAlign = 'top',
+              align = "right",
+              point = list(x = xmean, y = 0, xAxis= 0),
+              text = paste0("← Lower ", input$pop_name)
+            ),
+            list(
+              verticalAlign = 'bottom',
+              align = 'right',
+              point = list(x = 100, y = ymean, xAxis= 0, yAxis= 0),
+              text = paste0("↑ Higher ", input$variable),
+              distance = 5
+            ),
+            list(
+              verticalAlign = 'top',
+              align = 'right',
+              point = list(x = 100, y = ymean, xAxis= 0, yAxis= 0),
+              text = paste0("↓ Lower ", input$variable),
+              distance = -25
+            )
+          )
         )
       ) %>% 
       hc_add_theme(hc_theme_smpl()) %>% 
