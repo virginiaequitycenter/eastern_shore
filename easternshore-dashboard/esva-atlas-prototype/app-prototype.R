@@ -14,7 +14,7 @@ library(bslib)
 source("functions/utils.R")
 
 # Read in/wrangle data ----
-load("www/app_data_2024_07_26.Rdata")
+load("www/app_data_2024_07_30.Rdata")
 
 # brewer.pal(n=5,"OrRd")
 OrRdPal <- c("#FFF7EC", "#FEE8C8", "#FDD49E", "#FDBB84", "#FC8D59", "#EF6548", "#D7301F", "#B30000", "#7F0000")
@@ -40,7 +40,7 @@ ui <- page_navbar(
           ),
           radioButtons(
             "variable",
-            "Climate Risk:",
+            "Climate Measure:",
             choices = c("Peak Surge", "Mean Surge", "Percent of Area Inundated"),
             selected = "Peak Surge"
           ),
@@ -58,7 +58,12 @@ ui <- page_navbar(
           row_heights = c(1),
           highchartOutput('heatmap'),
           leafletOutput('map'),
-          htmlOutput("blk_grp_name_map")
+          layout_columns(
+            col_widths = 12,
+            row_heights = c(3,2),
+            htmlOutput("scenario_meta"),
+            htmlOutput("blk_grp_name_map")
+          )
         )
       )
     ), # end card
@@ -99,10 +104,17 @@ ui <- page_navbar(
     ) # end card
     
   ), # end nav_panel
-  nav_panel(title = "Local Scale",
+  nav_panel(title = "Willis Wharf Detail",
             layout_sidebar(
-              sidebar = "Selection panel",
-              leafletOutput('map2', height = '780px'),
+              sidebar = sidebar(
+                selectInput(
+                  'ww_scenario',
+                  label = 'Select Variable:',
+                  choices = c("Max Water Levels", "Inundation Time"),
+                  selected = "Max Water Levels"
+                )
+              ),
+              leafletOutput('map2', height = '700px'),
               )
   )
 
@@ -139,6 +151,41 @@ server <- function(input, output, session){
     d <- d %>% filter(locality %in% input$locality)
   })
   
+  dw <- reactive({
+    d <- willis_wharf
+    d[[input$ww_scenario]]
+    print(d)
+  })
+  
+ def_scenario <- reactive({
+    d <- scenario_meta
+    
+    d <- d %>% filter(scenario %in% input$scenario)
+    
+    d <- d$def
+  })
+ 
+ def_variable <- reactive({
+   d <- variable_meta
+   
+   d <- d %>% filter(variable %in% input$variable)
+   
+   d <- d$def
+ })
+ 
+ unit <- reactive({
+   sel <- input$variable
+   
+   d <- if(str_detect(sel, "Surge")){
+     " m"
+   } else if(str_detect(sel, "Inundated")){
+     "%"
+   }
+   
+   d
+ })
+ 
+  
   # reactive function to detect when variable 1, variable 2, or locality selection changes
   listen_closely <- reactive({
     list(input$variable, input$scenario)
@@ -147,6 +194,18 @@ server <- function(input, output, session){
   listen_pop <- reactive(input$pop_name)
   
   listen_local <- reactive(input$locality)
+  
+  listen_ww <- reactive(input$ww_scenario)
+  
+  
+  output$scenario_meta <- renderUI({
+    HTML(paste0('<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Selected Scenario: ', input$scenario, '</span><br/>',
+                '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">Scenario Description: ', def_scenario(), '</span><br/><br/>',
+                '<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Mapped Climate Measure: ', input$variable, '</span><br/>',
+                '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">Definition: ', def_variable(), '</span><br/>'
+    )
+    )
+  })
   
 
   
@@ -181,7 +240,8 @@ server <- function(input, output, session){
     labs <- as.list(m$label)
     
     map <- leaflet(m) %>%
-      addProviderTiles('CartoDB.Positron') %>%
+      addProviderTiles('CartoDB.Positron',
+                       options = providerTileOptions(minZoom = 8, maxZoom = 14)) %>%
       clearShapes() %>%
       addPolygons(weight = 1,
                   color = "#FFFFFF",
@@ -317,10 +377,9 @@ server <- function(input, output, session){
     
     output$blk_grp_name_map <- renderUI({
       HTML(paste0('<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Selected Area: ', d$names, '</span><br/>',
-                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/><strong>Population: ', as.character(d$`Total Population`), '</strong>',
-                  '<br/><br/>',
-                  ylabel, ': ', round(d[[input$variable]],2),
-                  '</span>')
+                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/><strong>Population: ', as.character(d$`Total Population`),
+                  '<br/>',
+                  ylabel, ': ', round(d[[input$variable]],2), unit(), '</strong></span>')
       )
     })
     
@@ -1043,13 +1102,39 @@ server <- function(input, output, session){
   })
   
   
-  # Nav panel 2 ----
+  # Willis Warf panel ----
   
   output$map2 <- renderLeaflet({
     
-    map2 <- leaflet() %>%
-      addProviderTiles('CartoDB.Positron') %>%
-      fitBounds(bbox[1], bbox[2], bbox[3], bbox[4]) %>% 
+    m <- dw()
+    
+    sel_range <- c(min(m[[input$ww_scenario]], na.rm=TRUE), max(m[[input$ww_scenario]], na.rm=TRUE))
+    
+    pal <- colorNumeric('GnBu', sel_range)
+    
+    map2 <- leaflet(m) %>%
+      addProviderTiles('CartoDB.Positron',
+                       options = providerTileOptions(minZoom = 9, maxZoom = 16)) %>%
+      setView(lng = -75.800288, lat = 37.522531, zoom = 14) %>%
+      clearShapes() %>%
+      addPolygons(weight = 1,
+                  color = "#FFFFFF",
+                  stroke = FALSE,
+                  # smoothFactor = 0.2, 
+                  fillColor = ~pal(m[[input$ww_scenario]]),
+                  fillOpacity = 0.7,
+                  # label = lapply(labs, HTML),
+                  # highlight = highlightOptions(
+                  #   weight = 3,
+                  #   fillOpacity = 1,
+                  #   bringToFront = FALSE),
+                  layerId = ~PatchID) %>% 
+      addLegend(position = 'bottomright', 
+                pal = pal,
+                values = m[[input$ww_scenario]],
+                # values = sel_range,
+                title = input$ww_scenario,
+                opacity = 0.7) %>%
       addResetMapButton()
     
     map2
