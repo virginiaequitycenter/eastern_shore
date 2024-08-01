@@ -147,12 +147,41 @@ king_tide_2050_hm <- heatmap_dat(king_tide_2050)
 # 
 # storm_blkgrp_long <- storm_blkgrp_long[with(storm_blkgrp_long, order(locality,names)),]
 
-# ....................................................
-# 8. Save for app ----
+# Whillis Wharf ----
+
+willis_wharf <- read_csv("esva-atlas-prototype/WhillisWarf_Isabel_detailed_output.csv")
+
+patch_geo <- st_read("esva-atlas-prototype/WhillisWarf_PatchID_DEM/WhillisWarf_PatchID_DEM.shp")
+patch_geo <- st_transform(patch_geo, 4326)
+
+willis_wharf <- willis_wharf %>% left_join(patch_geo) %>% 
+  st_as_sf()
+
+# willis_wharf %>% 
+#   ggplot() +
+#   geom_sf(aes(fill = Max_m), color = "black")
+names(willis_wharf) <- c("PatchID", "X_m", "Y_m", "NAVD88ELEV_m", "Max Water Levels", "Inundation Time", "DEM_m","geometry")
+
+scenario_meta <- data.frame(scenario = c("Hurricane Isabel 2003", "Hurricane Isabel 2050 Projection", 
+                                         "King Tide", "King Tide 2050 Projection"),
+                            def = c("Historical Hurricane Isabel 2003 ADCIRC model run", 
+                                    "Future Hurricane Isabel 2050 ADCIRC model run: model simulation by considering future sea-level rise of +0.2 meters and increased storm wind speed (*1.1)", 
+                                    "Historical King Tide 2009 ADCIRC model run", 
+                                    "Future King Tide 2050 ADCIRC model run: model simulation by considering future sea-level rise +0.2 meters"))
+
+variable_meta <- data.frame(variable = c("Peak Surge", "Mean Surge", "Percent of Area Inundated"),
+                            def = c("Peak flooding water depth in meters for inundated land areas (elevation >0 m mean sea level) within each census block group",
+                                    "The average peak flooding water depth in meters for inundated land areas (elevation >0 m mean sea level) within each census block group", 
+                                    "Percent of land area inundated (between 0-100%; 100% for completely inundated for all land areas) within each census block group"))
+
+
+
+# Save for app ----
 # create new app_data.Rdata file
 save(counties_geo, blkgrp_geo, schools_sf,
      storm_isabel, storm_isabel_2050, 
      king_tide, king_tide_2050,
      storm_isabel_hm, storm_isabel_2050_hm, 
      king_tide_hm, king_tide_2050_hm,
-     file = "esva-atlas-prototype/www/app_data_2027_07_26.Rdata")
+     willis_wharf, patch_geo,
+     file = "esva-atlas-prototype/www/app_data_2024_07_30.Rdata")
