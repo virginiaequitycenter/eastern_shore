@@ -160,7 +160,7 @@ willis_wharf <- willis_wharf %>% left_join(patch_geo) %>%
 # willis_wharf %>% 
 #   ggplot() +
 #   geom_sf(aes(fill = Max_m), color = "black")
-names(willis_wharf) <- c("PatchID", "X_m", "Y_m", "NAVD88ELEV_m", "Max Water Levels", "Inundation Time", "DEM_m","geometry")
+names(willis_wharf) <- c("PatchID", "X_m", "Y_m", "NAVD88ELEV_m", "Max Water Levels (m)", "Inundation Time", "DEM_m","geometry")
 
 scenario_meta <- data.frame(scenario = c("Hurricane Isabel 2003", "Hurricane Isabel 2050 Projection", 
                                          "King Tide", "King Tide 2050 Projection"),
