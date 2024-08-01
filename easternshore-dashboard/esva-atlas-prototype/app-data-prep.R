@@ -184,4 +184,5 @@ save(counties_geo, blkgrp_geo, schools_sf,
      storm_isabel_hm, storm_isabel_2050_hm, 
      king_tide_hm, king_tide_2050_hm,
      willis_wharf, patch_geo,
+     scenario_meta, variable_meta,
      file = "esva-atlas-prototype/www/app_data_2024_07_30.Rdata")
