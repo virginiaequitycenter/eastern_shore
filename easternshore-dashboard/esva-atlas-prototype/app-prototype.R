@@ -107,11 +107,12 @@ ui <- page_navbar(
   nav_panel(title = "Willis Wharf Detail",
             layout_sidebar(
               sidebar = sidebar(
+                "Scenario: Hurricane Isabel 2003", 
                 selectInput(
                   'ww_scenario',
                   label = 'Select Variable:',
-                  choices = c("Max Water Levels", "Inundation Time"),
-                  selected = "Max Water Levels"
+                  choices = c("Max Water Levels (m)", "Inundation Time"),
+                  selected = "Max Water Levels (m)"
                 )
               ),
               leafletOutput('map2', height = '700px'),
