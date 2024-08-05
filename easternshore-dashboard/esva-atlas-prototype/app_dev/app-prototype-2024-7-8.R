@@ -2,14 +2,197 @@
 
 library(shiny)
 library(tidyverse)
+library(readxl)
 library(sf)
 library(leaflet)
 library(RColorBrewer)
+library(tigris)
+options(tigris_use_cache = TRUE)
 library(highcharter)
 library(bslib)
 
-# Read in/wrangle data ----
-load("www/app_data.Rdata")
+source("functions/utils.R")
+
+blkgrp_names <- read_excel("www/tract_names.xlsx", sheet = "blkgrp2020")
+pop <- read_csv("www/population_blkgrp.csv")
+# data <- read_csv("blkgrp_pop_data.csv")
+schools_sf <- st_read("../data/schools_sf.geojson")
+storm_surge <- read_delim("IsabelStormOutput_upd.txt")
+
+storm_blkgrp <- storm_surge %>% 
+  mutate(GEOID = as.character(GEOID))
+
+# blkgrp_geo <- block_groups(state = "VA", year = 2023, cb = TRUE)
+# blkgrp_geo <- blkgrp_geo %>% 
+#   subset(COUNTYFP %in% c("001", "131"))
+blkgrp_geo <- st_read("cbg-selected/esva_2020blkgrp_clipped.geojson")
+blkgrp_geo <- st_transform(blkgrp_geo, 4326)
+
+counties_geo <- counties(state = 'VA', year = 2022, cb = TRUE) # from tigris / used 2021 bc 2022 caused error
+counties_geo <- counties_geo %>% subset(COUNTYFP %in% c("001"))
+counties_geo <- st_transform(counties_geo, 4326)
+
+# below variables for leaflet map boundary settings
+bbox <- st_bbox(counties_geo) %>% as.vector()
+
+
+blkgrp_names <- blkgrp_names %>% 
+  mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
+         tract = str_pad(tract, width = 6, side = "left", pad = "0"),
+         GEOID = paste0("51",localityfips,tract,blkgrp))
+
+## add demographic/population/housing data ----
+pop <- pop %>% 
+  mutate(tract_id = as.character(GEOID),
+         GEOID = as.character(GEOID)) 
+
+pop_est <- pop %>% 
+  select(GEOID, tract_id, totpop_est,
+         whiteper_est, blackper_est, ltnxper_est, remainper_est,
+         age17per_est, age18to64per_est, age65per_est, medhhinc_est
+         ) %>% 
+  mutate(GEOID = as.character(GEOID),
+         whiteper_est = round(whiteper_est,0),
+         blackper_est = round(blackper_est,0),
+         ltnxper_est = round(ltnxper_est,0),
+         remainper_est = round(remainper_est,0),
+         age17per_est = round(age17per_est,0),
+         age18to64per_est = round(age18to64per_est,0),
+         age65per_est = round(age65per_est,0))
+
+storm_blkgrp <- storm_blkgrp %>% 
+  left_join(blkgrp_names) %>% 
+  left_join(blkgrp_geo) %>% 
+  left_join(pop_est)
+
+# Find max/mins for scale
+PeakSurge_m <- storm_surge %>% 
+  select(PeakSurge_m) %>% 
+  rename(surge = PeakSurge_m)
+PeakSurge2050_m <- storm_surge %>% 
+  select(PeakSurge2050_m) %>% 
+  rename(surge = PeakSurge2050_m)
+MeanSurge_m <- storm_surge %>% 
+  select(MeanSurge_m) %>% 
+  rename(surge = MeanSurge_m)
+MeanSurge2050_m <- storm_surge %>% 
+  select(MeanSurge2050_m) %>% 
+  rename(surge = MeanSurge2050_m)
+
+surge_range <- PeakSurge_m %>% 
+  rbind(PeakSurge2050_m) %>% 
+  rbind(MeanSurge_m) %>% 
+  rbind(MeanSurge2050_m)
+# surgemax <- max(surge_range, na.rm=TRUE)
+
+InundationAreaFraction <- storm_surge %>% 
+  select(InundationAreaFraction) %>% 
+  rename(surge = InundationAreaFraction)
+InundationAreaFraction2050 <- storm_surge %>% 
+  select(InundationAreaFraction2050) %>% 
+  rename(surge = InundationAreaFraction2050)
+
+inund_range <- InundationAreaFraction %>% 
+  rbind(InundationAreaFraction2050)
+
+peak_s_max = max(storm_blkgrp$PeakSurge_m, na.rm=TRUE)
+peak_s2050_max = max(storm_blkgrp$PeakSurge2050_m, na.rm=TRUE)
+
+storm_blkgrp <- storm_blkgrp %>% 
+  mutate(SurgeMax = max(surge_range, na.rm=TRUE),
+         SurgeMin = min(surge_range, na.rm=TRUE),
+         InundationMax = max(inund_range, na.rm=TRUE),
+         InundationMin = min(inund_range, na.rm=TRUE))
+
+storm_blkgrp <- sf::st_as_sf(storm_blkgrp)
+
+storm_dat <- storm_blkgrp %>% 
+  mutate(tract_id = GEOID,
+         PeakSurgeTile = ntile(PeakSurge_m, 4)) %>% 
+  select(GEOID, tract_id, locality, localityfips, tract, blkgrp, names, 
+         PeakSurge_m, PeakSurgeTile, MeanSurge_m, InundationAreaFraction, 
+         SurgeMax, SurgeMin, InundationMax, InundationMin,
+         totpop_est, whiteper_est, blackper_est, ltnxper_est, remainper_est,
+         age17per_est, age18to64per_est, age65per_est, medhhinc_est,
+         geometry)
+
+names(storm_dat) = c(
+  "GEOID", "tract_id", "locality", "localityfips", "tract", "blkgrp", "names", 
+  "Peak Surge", "PeakSurgeTile", "Mean Surge", "Inundation Area Fraction", 
+  "SurgeMax", "SurgeMin", "InundationMax", "InundationMin", "totpop_est", 
+  "Percent White Population", "Percent Black Population", "Percent Hispanic Population", 
+  "All Others", "Population under 18 yrs", "Population 18-64 yrs", "Population over 65 yrs", 
+  "Median Household Income",
+  "geometry"
+)
+
+storm_2050_dat <- storm_blkgrp %>% 
+  mutate(tract_id = GEOID,
+         PeakSurgeTile = ntile(PeakSurge2050_m, 4),
+         PeakSurge_m = PeakSurge2050_m, 
+         MeanSurge_m = MeanSurge2050_m, 
+         InundationAreaFraction = InundationAreaFraction2050) %>% 
+  select(GEOID, tract_id, locality, localityfips, tract, blkgrp, names, 
+         PeakSurge_m, PeakSurgeTile, MeanSurge_m, InundationAreaFraction, 
+         SurgeMax, SurgeMin, InundationMax, InundationMin,
+         totpop_est, whiteper_est, blackper_est, ltnxper_est, remainper_est,
+         age17per_est, age18to64per_est, age65per_est, medhhinc_est,
+         geometry)  
+
+names(storm_2050_dat) = c(
+  "GEOID", "tract_id", "locality", "localityfips", "tract", "blkgrp", "names", 
+  "Peak Surge", "PeakSurgeTile", "Mean Surge", "Inundation Area Fraction", 
+  "SurgeMax", "SurgeMin", "InundationMax", "InundationMin", "totpop_est", 
+  "Percent White Population", "Percent Black Population", "Percent Hispanic Population", 
+  "All Others", "Population under 18 yrs", "Population 18-64 yrs", "Population over 65 yrs", 
+  "Median Household Income",
+  "geometry"
+)
+
+
+## reshape for heatmap ----
+# storm_dat_long <- storm_blkgrp %>% 
+#   mutate(tract_id = GEOID) %>% 
+#   select(GEOID, tract_id, locality, localityfips, tract, blkgrp, names, 
+#          PeakSurge_m, MeanSurge_m, InundationAreaFraction) %>% 
+#   st_drop_geometry() %>% 
+#   rename_with(.fn = ~ paste0("var_", .x), .cols = c("PeakSurge_m", "MeanSurge_m", "InundationAreaFraction")) %>% 
+#   pivot_longer(starts_with("var_"), names_to = "variable", values_to = "risk") %>% 
+#   mutate(variable = case_when(variable == "var_PeakSurge_m" ~ "Peak Surge",
+#                               variable == "var_MeanSurge_m" ~ "Mean Surge",
+#                               variable == "var_InundationAreaFraction" ~ "Inundation Area Fraction"))
+# storm_dat_long <- storm_dat_long[with(storm_dat_long, order(locality,names)),]
+# 
+# storm_2050_dat_long <- storm_blkgrp %>% 
+#   mutate(tract_id = GEOID) %>% 
+#   select(GEOID, tract_id, locality, localityfips, tract, blkgrp, names, 
+#          PeakSurge2050_m, MeanSurge2050_m, InundationAreaFraction2050) %>% 
+#   st_drop_geometry() %>% 
+#   rename_with(.fn = ~ paste0("var_", .x), .cols = c("PeakSurge2050_m", "MeanSurge2050_m", "InundationAreaFraction2050")) %>% 
+#   pivot_longer(starts_with("var_"), names_to = "variable", values_to = "risk") %>% 
+#   mutate(variable = case_when(variable == "var_PeakSurge2050_m" ~ "Peak Surge",
+#                               variable == "var_MeanSurge2050_m" ~ "Mean Surge",
+#                               variable == "var_InundationAreaFraction2050" ~ "Inundation Area Fraction"))
+# storm_2050_dat_long <- storm_2050_dat_long[with(storm_2050_dat_long, order(locality,names)),]
+
+
+storm_blkgrp_long <- storm_blkgrp %>%
+  rename_with(.fn = ~ paste0("var_", .x), .cols = c("PeakSurge_m", "MeanSurge_m", "InundationAreaFraction", "PeakSurge2050_m", "MeanSurge2050_m", "InundationAreaFraction2050")) %>% 
+  select(GEOID, COUNTYFP, names, starts_with("var_")) %>%
+  pivot_longer(starts_with("var_"), names_to = "variable", values_to = "risk") %>%
+  mutate(group = case_when(str_detect(variable, "2050") ~ "Scenario2050",
+                           .default = "Scenario1"),
+         # variable = str_remove(variable, "var_"),
+         variable = factor(variable, levels = c("var_PeakSurge_m", "var_MeanSurge_m", "var_InundationAreaFraction", "var_PeakSurge2050_m", "var_MeanSurge2050_m", "var_InundationAreaFraction2050"),
+                           labels = c("Peak Surge", "Mean Surge", "Inundation Area Fraction", "Peak Surge", "Mean Surge", "Inundation Area Fraction")
+         ),
+         locality = case_when(COUNTYFP == "001" ~ "Accomack",
+                              COUNTYFP == "131" ~ "Northampton")
+  ) %>% 
+  st_drop_geometry()
+
+storm_blkgrp_long <- storm_blkgrp_long[with(storm_blkgrp_long, order(locality,names)),]
+
 
 # brewer.pal(n=5,"OrRd")
 OrRdPal <- c("#FFF7EC", "#FEE8C8", "#FDD49E", "#FDBB84", "#FC8D59", "#EF6548", "#D7301F", "#B30000", "#7F0000")
@@ -26,19 +209,31 @@ ui <- page_navbar(
       layout_sidebar(
         fillable = TRUE,
         sidebar = sidebar(
-          selectInput(
-            'scenario',
-            label = 'Select Scenario:',
-            choices = c("Hurricane Isabel 2003", "Hurricane Isabel 2050 Projection", 
-                        "King Tide", "King Tide 2050 Projection"),
-            selected = "Hurricane Isabel 2003"
+          sliderInput("scenario", "Scenario Year:",
+                      min = 2003, max = 2050,
+                      value = 2003, step = 47,
+                      sep = ""),
+          # selectInput(
+          #   'scenario',
+          #   label = 'Select Scenario',
+          #   choices = c("Hurricane Isabel 2003", "Hurricane Isabel 2050 Projection"),
+          #   selected = "Hurricane Isabel 2003"
+          # ),
+          prettyRadioButtons(
+            inputId = "variable",
+            label = "Climate Risk:",
+            selected = "Peak Surge",
+            status = "primary",
+            shape = c("round"),
+            width = NULL,
+            choices = c("Peak Surge", "Mean Surge", "Inundation Area Fraction","Peak Surge", "Mean Surge", "Inundation Area Fraction")
           ),
-          radioButtons(
-            "variable",
-            "Select Measure:",
-            choices = c("Peak Surge", "Mean Surge", "Percent of Area Inundated"),
-            selected = "Peak Surge"
-          ),
+          # radioButtons(
+          #   "variable",
+          #   "Climate Risk:",
+          #   choices = c("Peak Surge", "Mean Surge", "Inundation Area Fraction"),
+          #   selected = "Peak Surge"
+          # ),
           checkboxGroupInput(
             inputId = "locality",
             label = "Select Counties:",
@@ -48,17 +243,11 @@ ui <- page_navbar(
             inline = TRUE)
         ),
         layout_columns(
-          # col_widths = c(4,8),
           col_widths = c(3,6,3),
           row_heights = c(1),
           highchartOutput('heatmap'),
           leafletOutput('map'),
-          layout_columns(
-            col_widths = 12,
-            row_heights = c(3,2),
-            htmlOutput("scenario_meta"),
-            htmlOutput("blk_grp_name_map")
-          )
+          htmlOutput("blk_grp_name_map")          
         )
       )
     ), # end card
@@ -80,6 +269,14 @@ ui <- page_navbar(
                     row_heights = c(1),
                     highchartOutput('scatter'),
                     htmlOutput("blk_grp_name")
+                    # layout_columns(
+                    #   col_widths = 12,
+                    #   # row_heights = c(5,7,7,8),
+                    #   # 
+                    #   # highchartOutput('raceplot'),
+                    #   # highchartOutput('ageplot'),
+                    #   # highchartOutput('incomeplot')
+                    # )
                   )
                 )
               ),
@@ -99,23 +296,10 @@ ui <- page_navbar(
     ) # end card
     
   ), # end nav_panel
-  nav_panel(title = "Willis Wharf Detail",
+  nav_panel(title = "Local Scale",
             layout_sidebar(
-              sidebar = sidebar(
-                selectInput(
-                  'scenario_ww',
-                  label = 'Select Scenario:',
-                  choices = c("Hurricane Isabel 2003", "Hurricane Isabel 2050 Projection"),
-                  selected = "Hurricane Isabel 2003"
-                ),
-                selectInput(
-                  'variable_ww',
-                  label = 'Select Measure:',
-                  choices = c("Max Water Levels (m)", "Inundation Time"),
-                  selected = "Max Water Levels (m)"
-                )
-              ),
-              leafletOutput('map2', height = '700px'),
+              sidebar = "Selection panel",
+              leafletOutput('map2', height = '780px'),
               )
   )
 
@@ -123,17 +307,19 @@ ui <- page_navbar(
 
 server <- function(input, output, session){
   
+  
   df <- reactive({
     var <- as.character(input$scenario)
     
     d <- switch(var,
-                "Hurricane Isabel 2003" = storm_isabel, 
-                "Hurricane Isabel 2050 Projection" = storm_isabel_2050, 
-                "King Tide" = king_tide, 
-                "King Tide 2050 Projection" = king_tide_2050)
-
-    d <- d %>% filter(locality %in% input$locality)
+                "2003" = storm_dat,
+                "2050" = storm_2050_dat)
     
+    # d <- switch(input$scenario,
+    #             "Hurricane Isabel 2003" = storm_dat,
+    #             "Hurricane Isabel 2050 Projection" = storm_2050_dat)
+      
+    d <- d %>% filter(locality %in% input$locality)
     d[[input$variable]]
     
     print(d)
@@ -141,56 +327,14 @@ server <- function(input, output, session){
   })
   
   dl <- reactive({
-    var <- as.character(input$scenario)
-    
-    d <- switch(var,
-                "Hurricane Isabel 2003" = storm_isabel_hm, 
-                "Hurricane Isabel 2050 Projection" = storm_isabel_2050_hm, 
-                "King Tide" = king_tide_hm, 
-                "King Tide 2050 Projection" = king_tide_2050_hm)
-    
+    # d <- switch(input$scenario,
+    #             "Hurricane Isabel 2003" = storm_dat_long,
+    #             "Hurricane Isabel 2050 Projection" = storm_2050_dat_long)
+    d <- storm_blkgrp_long %>%
+      st_drop_geometry()
+      
     d <- d %>% filter(locality %in% input$locality)
   })
-  
-  dw <- reactive({
-    var <- as.character(input$scenario_ww)
-    
-    d <- switch(var,
-                "Hurricane Isabel 2003" = willis_wharf, 
-                "Hurricane Isabel 2050 Projection" = willis_wharf_2050)
-    
-    d[[input$variable_ww]]
-    print(d)
-  })
-  
- def_scenario <- reactive({
-    d <- scenario_meta
-    
-    d <- d %>% filter(scenario %in% input$scenario)
-    
-    d <- d$def
-  })
- 
- def_variable <- reactive({
-   d <- variable_meta
-   
-   d <- d %>% filter(variable %in% input$variable)
-   
-   d <- d$def
- })
- 
- unit <- reactive({
-   sel <- input$variable
-   
-   d <- if(str_detect(sel, "Surge")){
-     " m"
-   } else if(str_detect(sel, "Inundated")){
-     "%"
-   }
-   
-   d
- })
- 
   
   # reactive function to detect when variable 1, variable 2, or locality selection changes
   listen_closely <- reactive({
@@ -200,20 +344,6 @@ server <- function(input, output, session){
   listen_pop <- reactive(input$pop_name)
   
   listen_local <- reactive(input$locality)
-  
-  listen_ww <- reactive({
-    list(input$variable_ww, input$scenario_ww)
-  })
-  
-  
-  output$scenario_meta <- renderUI({
-    HTML(paste0('<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Selected Scenario: ', input$scenario, '</span><br/>',
-                '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">Scenario Description: ', def_scenario(), '</span><br/><br/>',
-                '<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Mapped Climate Measure: ', input$variable, '</span><br/>',
-                '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">Definition: ', def_variable(), '</span><br/>'
-    )
-    )
-  })
   
 
   
@@ -226,11 +356,13 @@ server <- function(input, output, session){
     
     sel <- input$variable
     
-    sel_unit <- if(str_detect(sel, "Surge")){
-      " m"
-    } else if(str_detect(sel, "Inundated")){
-      "%"
-    }
+    # sel_range <- if(str_detect(sel, "Surge")){
+    #   # c(min(m$SurgeMin), max(m$SurgeMax))
+    #   c(0, max(m$SurgeMax))
+    # } else if(str_detect(sel, "Inundation")){
+    #   # c(min(m$InundationMin), max(m$InundationMax))
+    #   c(0, max(m$InundationMax))
+    # }
     
     sel_range <- c(min(m[[input$variable]], na.rm=TRUE), max(m[[input$variable]], na.rm=TRUE))
 
@@ -243,13 +375,12 @@ server <- function(input, output, session){
     
     
     m <- m %>% 
-      mutate(label = paste0('Block Group: ', names, '<br/>',input$variable, ": ",round(m[[input$variable]], digits = 2), sel_unit))
+      mutate(label = paste0('Block Group: ', names, '<br/>',input$variable, ": ",round(m[[input$variable]], digits = 2)))
     
     labs <- as.list(m$label)
     
     map <- leaflet(m) %>%
-      addProviderTiles('CartoDB.Positron',
-                       options = providerTileOptions(minZoom = 8, maxZoom = 14)) %>%
+      addProviderTiles('CartoDB.Positron') %>%
       clearShapes() %>%
       addPolygons(weight = 1,
                   color = "#FFFFFF",
@@ -264,8 +395,8 @@ server <- function(input, output, session){
                     bringToFront = FALSE),
                   layerId = ~tract_id) %>% 
       addLegend(position = 'bottomright', pal = pal_rev,
-                values = m[[input$variable]],
-                # values = sel_range,
+                # values = m[[input$variable]], 
+                values = sel_range,
                 # title = input$variable,
                 title = paste0(
                   '<span style="color: rgb(51, 51, 51); font-size: 16px; font-weight: bold; fill: rgb(51, 51, 51);">',
@@ -273,10 +404,10 @@ server <- function(input, output, session){
                   '<span style="color: rgb(51, 51, 51); font-size: 14px; font-weight: bold; fill: rgb(51, 51, 51);">',
                   'Risk Level </span>'),
                 opacity = 0.7,
-                # labFormat = function(type, breaks) {
-                #   return(c("Higher", "", "", "", "Lower"))
-                # }
-                labFormat = labelFormat(transform = function(x) sort(round(x, 1), decreasing = TRUE), suffix = sel_unit)
+                labFormat = function(type, breaks) {
+                  return(c("Higher", "", "", "", "Lower"))
+                }
+                # labFormat = labelFormat(transform = function(x) sort(round(x, 1), decreasing = TRUE))
                 # labels = c("Higher Risk", "", "", "", "Lower Risk")
                 ) %>%
       addCircles(data =  filter(schools_sf),
@@ -365,13 +496,13 @@ server <- function(input, output, session){
     
     output$blk_grp_detail <- renderUI({
       HTML(paste0('<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Selected Area: ', d$names, '</span><br/>',
-                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/>Population: ', as.character(d$`Total Population`), '</span>')
+                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/>Population: ', as.character(d$totpop_est), '</span>')
       )
     })
     
     output$blk_grp_name <- renderUI({
       HTML(paste0('<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Selected Area: ', d$names, '</span><br/>',
-                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/><strong>Population: ', as.character(d$`Total Population`), '</strong></span>',
+                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/><strong>Population: ', as.character(d$totpop_est), '</strong></span>',
                   '<br/><br/>',
                   '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">', 
                   xname, ': ', prettyNumber, '<br/>',
@@ -385,9 +516,10 @@ server <- function(input, output, session){
     
     output$blk_grp_name_map <- renderUI({
       HTML(paste0('<span style="color: rgb(51, 51, 51); font-size: 18px; font-family: Roboto Condensed; font-weight: bold; fill: rgb(51, 51, 51);">Selected Area: ', d$names, '</span><br/>',
-                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/><strong>Population: ', as.character(d$`Total Population`),
-                  '<br/>',
-                  ylabel, ': ', round(d[[input$variable]],2), unit(), '</strong></span>')
+                  '<span style="color: rgb(51, 51, 51); font-size: 16px; font-family: Roboto Condensed; fill: rgb(51, 51, 51);">', d$locality, ', Virginia<br/>Block group: ', d$tract, '<br/><strong>Population: ', as.character(d$totpop_est), '</strong>',
+                  '<br/><br/>',
+                  ylabel, ': ', round(d[[input$variable]],2),
+                  '</span>')
       )
     })
     
@@ -402,7 +534,7 @@ server <- function(input, output, session){
         addPolygons(data = filter(df(), tract_id == click_tract()), fill = FALSE,
                     color = '#00FFFF', opacity = 1, layerId = 'htract',
                     group = 'tract',
-                    weight = 1)
+                    weight = 1.6)
       
       # Add clicket tract point to scatter, remove when new one is clicked 
       d <- filter(df(), tract_id == click_tract()) %>% 
@@ -572,7 +704,7 @@ server <- function(input, output, session){
     risk_max <- max(d$risk, na.rm=TRUE)
     risk_min <- min(d$risk, na.rm=TRUE)
     
-    ind <- d %>% filter(variable == "Percent of Area Inundated")
+    ind <- d %>% filter(variable == "Inundation Area Fraction")
     max_ind <- max(ind$risk, na.rm=TRUE)
     min_ind <- min(ind$risk, na.rm=TRUE)
     
@@ -580,12 +712,12 @@ server <- function(input, output, session){
     heat_dat <- d %>%
       group_by(variable, names)
     
-    # heat_dat <- if(sel == "2050"){
-    #   heat_dat %>% filter(group == "Scenario2050")
-    # } else if(sel == "2003"){
-    #   heat_dat %>% filter(group == "Scenario1")
-    # }
-    # 
+    heat_dat <- if(sel == "2050"){
+      heat_dat %>% filter(group == "Scenario2050")
+    } else if(sel == "2003"){
+      heat_dat %>% filter(group == "Scenario1")
+    }
+    
     # ylabels <- as.list(heat_dat$names) %>% unique()
     ylabels <- heat_dat$names[order(heat_dat$names, na.last = NA)]
     ylabels <- ylabels %>% unique()
@@ -627,7 +759,7 @@ server <- function(input, output, session){
         yAxis = 0
       ) %>%
       hc_add_series(
-        data = heat_dat %>% filter(variable == "Percent of Area Inundated"),
+        data = heat_dat %>% filter(variable == "Inundation Area Fraction"),
         type = "heatmap",
         animation=FALSE,
         mapping =
@@ -693,7 +825,7 @@ server <- function(input, output, session){
           opposite = TRUE,
           labels = list(rotation = -90,
                         formatter = JS("function(){
-                            return (`% Area Inundated`)
+                            return (`Inundation Area`)
                             }")
                         ),
           width = '33%',
@@ -806,17 +938,17 @@ server <- function(input, output, session){
     
     sel <- input$variable
     
-    # sel_max <- if(str_detect(sel, "Surge")){
-    #   max(d$SurgeMax)
-    # } else if(str_detect(sel, "Inundation")){
-    #   max(d$InundationMax)
-    # }
+    sel_max <- if(str_detect(sel, "Surge")){
+      max(d$SurgeMax)
+    } else if(str_detect(sel, "Inundation")){
+      max(d$InundationMax)
+    }
     
-    # sel_min <- if(str_detect(sel, "Surge")){
-    #   min(d$SurgeMax)
-    # } else if(str_detect(sel, "Inundation")){
-    #   min(d$InundationMax)
-    # }
+    sel_min <- if(str_detect(sel, "Surge")){
+      min(d$SurgeMax)
+    } else if(str_detect(sel, "Inundation")){
+      min(d$InundationMax)
+    }
     
     xmean <- mean(d[[input$pop_name]], na.rm = TRUE)
     # print(xmean)
@@ -965,7 +1097,7 @@ server <- function(input, output, session){
                                                         td$`Percent Black Population`,
                                                         td$`Percent Hispanic Population`,
                                                         td$`All Others`)) %>%
-      # hc_title(text = paste0(td$names, ' (Block group ', td$tract, '), ', td$locality, ', Virginia', '<br>Population: ', as.character(td$`Total Population`)),
+      # hc_title(text = paste0(td$names, ' (Block group ', td$tract, '), ', td$locality, ', Virginia', '<br>Population: ', as.character(td$totpop_est)),
       #          align = 'left') %>%
       hc_title(text = paste0('Race & Ethnicity'),
                   align = 'left') %>%
@@ -1110,39 +1242,13 @@ server <- function(input, output, session){
   })
   
   
-  # Willis Warf panel ----
+  # Nav panel 2 ----
   
   output$map2 <- renderLeaflet({
     
-    m <- dw()
-    
-    sel_range <- c(min(m[[input$variable_ww]], na.rm=TRUE), max(m[[input$variable_ww]], na.rm=TRUE))
-    
-    pal <- colorNumeric('GnBu', sel_range)
-    
-    map2 <- leaflet(m) %>%
-      addProviderTiles('CartoDB.Positron',
-                       options = providerTileOptions(minZoom = 9, maxZoom = 16)) %>%
-      setView(lng = -75.800288, lat = 37.522531, zoom = 14) %>%
-      clearShapes() %>%
-      addPolygons(weight = 1,
-                  color = "#FFFFFF",
-                  stroke = FALSE,
-                  # smoothFactor = 0.2, 
-                  fillColor = ~pal(m[[input$variable_ww]]),
-                  fillOpacity = 0.5,
-                  # label = lapply(labs, HTML),
-                  # highlight = highlightOptions(
-                  #   weight = 3,
-                  #   fillOpacity = 1,
-                  #   bringToFront = FALSE),
-                  layerId = ~PatchID) %>% 
-      addLegend(position = 'bottomright', 
-                pal = pal,
-                values = m[[input$variable_ww]],
-                # values = sel_range,
-                title = input$variable_ww,
-                opacity = 0.5) %>%
+    map2 <- leaflet() %>%
+      addProviderTiles('CartoDB.Positron') %>%
+      fitBounds(bbox[1], bbox[2], bbox[3], bbox[4]) %>% 
       addResetMapButton()
     
     map2

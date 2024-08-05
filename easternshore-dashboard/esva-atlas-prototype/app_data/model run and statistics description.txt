@@ -1,0 +1,19 @@
+Historical ADCIRC model run
+------------
+Storm ID     Year          Storm name              Simulation start time     Simulation stop time
+IB2003	  2003	  Hurricane Isabel	  9/6/2003	                          9/21/2003
+KT2009      2009          King Tide                   8/20/2009                         11/1/2009
+------------
+
+
+Future Isabel 2050 ADCIRC model run: model simulation by considering future sea-level rise +0.2 m and increased storm wind speed (*1.1)
+Future King Tide 2050 ADCIRC model run: model simulation by considering future sea-level rise +0.2 m
+
+
+Storm surge event statistics calculation for each census block group
+------------
+GEOID: GEOID for each census block group
+PeakSurge: peak flooding water depth (m) for inundated land areas (elevation >0 m mean sea level) within each census block group
+MeanSurge: the average peak flooding water depth (m) for inundated land areas (elevation >0 m mean sea level) within each census block group
+Frac: Inundated land area fraction (between 0-1; 1 for completely inundated for all land areas) during the simulated event within each census block group
+------------
