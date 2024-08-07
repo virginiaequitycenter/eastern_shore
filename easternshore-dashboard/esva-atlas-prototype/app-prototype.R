@@ -1121,8 +1121,8 @@ server <- function(input, output, session){
     pal <- colorNumeric('GnBu', sel_range)
     
     map2 <- leaflet(m) %>%
-      addProviderTiles('CartoDB.Positron',
-                       options = providerTileOptions(minZoom = 9, maxZoom = 16)) %>%
+      addProviderTiles('OpenStreetMap',
+                       options = providerTileOptions(minZoom = 9, maxZoom = 17)) %>%
       setView(lng = -75.800288, lat = 37.522531, zoom = 14) %>%
       clearShapes() %>%
       addPolygons(weight = 1,
