@@ -2,19 +2,14 @@
 
 library(shiny)
 library(tidyverse)
-library(readxl)
 library(sf)
 library(leaflet)
 library(RColorBrewer)
-library(tigris)
-options(tigris_use_cache = TRUE)
 library(highcharter)
 library(bslib)
 
-source("functions/utils.R")
-
 # Read in/wrangle data ----
-load("www/app_data_2024_07_30.Rdata")
+load("www/app_data.Rdata")
 
 # brewer.pal(n=5,"OrRd")
 OrRdPal <- c("#FFF7EC", "#FEE8C8", "#FDD49E", "#FDBB84", "#FC8D59", "#EF6548", "#D7301F", "#B30000", "#7F0000")
@@ -40,7 +35,7 @@ ui <- page_navbar(
           ),
           radioButtons(
             "variable",
-            "Climate Measure:",
+            "Select Measure:",
             choices = c("Peak Surge", "Mean Surge", "Percent of Area Inundated"),
             selected = "Peak Surge"
           ),
@@ -107,10 +102,15 @@ ui <- page_navbar(
   nav_panel(title = "Willis Wharf Detail",
             layout_sidebar(
               sidebar = sidebar(
-                "Scenario: Hurricane Isabel 2003", 
                 selectInput(
-                  'ww_scenario',
-                  label = 'Select Variable:',
+                  'scenario_ww',
+                  label = 'Select Scenario:',
+                  choices = c("Hurricane Isabel 2003", "Hurricane Isabel 2050 Projection"),
+                  selected = "Hurricane Isabel 2003"
+                ),
+                selectInput(
+                  'variable_ww',
+                  label = 'Select Measure:',
                   choices = c("Max Water Levels (m)", "Inundation Time"),
                   selected = "Max Water Levels (m)"
                 )
@@ -153,8 +153,13 @@ server <- function(input, output, session){
   })
   
   dw <- reactive({
-    d <- willis_wharf
-    d[[input$ww_scenario]]
+    var <- as.character(input$scenario_ww)
+    
+    d <- switch(var,
+                "Hurricane Isabel 2003" = willis_wharf, 
+                "Hurricane Isabel 2050 Projection" = willis_wharf_2050)
+    
+    d[[input$variable_ww]]
     print(d)
   })
   
@@ -196,7 +201,9 @@ server <- function(input, output, session){
   
   listen_local <- reactive(input$locality)
   
-  listen_ww <- reactive(input$ww_scenario)
+  listen_ww <- reactive({
+    list(input$variable_ww, input$scenario_ww)
+  })
   
   
   output$scenario_meta <- renderUI({
@@ -799,17 +806,17 @@ server <- function(input, output, session){
     
     sel <- input$variable
     
-    sel_max <- if(str_detect(sel, "Surge")){
-      max(d$SurgeMax)
-    } else if(str_detect(sel, "Inundation")){
-      max(d$InundationMax)
-    }
+    # sel_max <- if(str_detect(sel, "Surge")){
+    #   max(d$SurgeMax)
+    # } else if(str_detect(sel, "Inundation")){
+    #   max(d$InundationMax)
+    # }
     
-    sel_min <- if(str_detect(sel, "Surge")){
-      min(d$SurgeMax)
-    } else if(str_detect(sel, "Inundation")){
-      min(d$InundationMax)
-    }
+    # sel_min <- if(str_detect(sel, "Surge")){
+    #   min(d$SurgeMax)
+    # } else if(str_detect(sel, "Inundation")){
+    #   min(d$InundationMax)
+    # }
     
     xmean <- mean(d[[input$pop_name]], na.rm = TRUE)
     # print(xmean)
@@ -1109,21 +1116,21 @@ server <- function(input, output, session){
     
     m <- dw()
     
-    sel_range <- c(min(m[[input$ww_scenario]], na.rm=TRUE), max(m[[input$ww_scenario]], na.rm=TRUE))
+    sel_range <- c(min(m[[input$variable_ww]], na.rm=TRUE), max(m[[input$variable_ww]], na.rm=TRUE))
     
     pal <- colorNumeric('GnBu', sel_range)
     
     map2 <- leaflet(m) %>%
-      addProviderTiles('CartoDB.Positron',
-                       options = providerTileOptions(minZoom = 9, maxZoom = 16)) %>%
+      addProviderTiles('OpenStreetMap',
+                       options = providerTileOptions(minZoom = 9, maxZoom = 17)) %>%
       setView(lng = -75.800288, lat = 37.522531, zoom = 14) %>%
       clearShapes() %>%
       addPolygons(weight = 1,
                   color = "#FFFFFF",
                   stroke = FALSE,
                   # smoothFactor = 0.2, 
-                  fillColor = ~pal(m[[input$ww_scenario]]),
-                  fillOpacity = 0.7,
+                  fillColor = ~pal(m[[input$variable_ww]]),
+                  fillOpacity = 0.5,
                   # label = lapply(labs, HTML),
                   # highlight = highlightOptions(
                   #   weight = 3,
@@ -1132,10 +1139,10 @@ server <- function(input, output, session){
                   layerId = ~PatchID) %>% 
       addLegend(position = 'bottomright', 
                 pal = pal,
-                values = m[[input$ww_scenario]],
+                values = m[[input$variable_ww]],
                 # values = sel_range,
-                title = input$ww_scenario,
-                opacity = 0.7) %>%
+                title = input$variable_ww,
+                opacity = 0.5) %>%
       addResetMapButton()
     
     map2

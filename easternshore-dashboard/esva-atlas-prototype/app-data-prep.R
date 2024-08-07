@@ -13,20 +13,20 @@ library(bslib)
 
 # Read in/wrangle data ----
 ## Block Group names
-blkgrp_names <- read_excel("esva-atlas-prototype/www/tract_names.xlsx", sheet = "blkgrp2020")
+blkgrp_names <- read_excel("esva-atlas-prototype/data/tract_names.xlsx", sheet = "blkgrp2020")
 blkgrp_names <- blkgrp_names %>% 
   mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
          tract = str_pad(tract, width = 6, side = "left", pad = "0"),
          GEOID = paste0("51",localityfips,tract,blkgrp))
 
 ## Population data
-pop <- read_csv("esva-atlas-prototype/www/population_blkgrp.csv")
+pop <- read_csv("esva-atlas-prototype/data/population_blkgrp.csv")
 pop <- pop %>% 
   mutate(tract_id = as.character(GEOID),
          GEOID = as.character(GEOID)) 
 
 ## Climate data
-storm_surge <- read_delim("esva-atlas-prototype/IsabelStormOutput_upd.txt") %>% 
+storm_surge <- read_delim("esva-atlas-prototype/data/IsabelStormOutput_upd.txt") %>% 
   mutate(GEOID = as.character(GEOID))
 
 storm_isabel <- storm_surge %>% 
@@ -39,16 +39,16 @@ new_names <- c("GEOID", "PeakSurge", "MeanSurge", "Frac")
 names(storm_isabel) <- new_names
 names(storm_isabel_2050) <- new_names
 
-king_tide <- read_delim("esva-atlas-prototype/KingTide_BLGP.txt")
+king_tide <- read_delim("esva-atlas-prototype/data/KingTide_BLGP.txt")
 king_tide <- king_tide %>% 
   mutate(GEOID = as.character(GEOID)) 
 
-king_tide_2050 <- read_delim("esva-atlas-prototype/KingTide_2050_BLGP.txt")
+king_tide_2050 <- read_delim("esva-atlas-prototype/data/KingTide_2050_BLGP.txt")
 king_tide_2050 <- king_tide_2050 %>% 
   mutate(GEOID = as.character(GEOID)) 
 
 ## Read in/get geometries 
-blkgrp_geo <- st_read("esva-atlas-prototype/cbg-selected/esva_2020blkgrp_clipped.geojson")
+blkgrp_geo <- st_read("esva-atlas-prototype/data/cbg-selected/esva_2020blkgrp_clipped.geojson")
 blkgrp_geo <- st_transform(blkgrp_geo, 4326)
 
 counties_geo <- counties(state = 'VA', year = 2022, cb = TRUE) # from tigris / used 2021 bc 2022 caused error
@@ -61,7 +61,7 @@ bbox <- st_bbox(counties_geo) %>% as.vector()
 ## Schools
 schools_sf <- st_read("data/schools_sf.geojson")
 
-# add demographic/population/housing data ----
+# add demographic/population/housing data
 pop_est <- pop %>% 
   select(GEOID, tract_id, totpop_est,
          whiteper_est, blackper_est, ltnxper_est, remainper_est,
@@ -108,7 +108,7 @@ storm_isabel_2050 <- data_wrangle(storm_isabel_2050)
 king_tide <- data_wrangle(king_tide)
 king_tide_2050 <- data_wrangle(king_tide_2050)
 
-
+# Heatmap data ----
 heatmap_dat <- function(df){
   df <- df %>% 
     rename_with(.fn = ~ paste0("var_", .x), .cols = c("Peak Surge", "Mean Surge", "Percent of Area Inundated")) %>%
@@ -147,21 +147,29 @@ king_tide_2050_hm <- heatmap_dat(king_tide_2050)
 # 
 # storm_blkgrp_long <- storm_blkgrp_long[with(storm_blkgrp_long, order(locality,names)),]
 
-# Whillis Wharf ----
+# Willis Wharf ----
 
-willis_wharf <- read_csv("esva-atlas-prototype/WhillisWarf_Isabel_detailed_output.csv")
+willis_wharf <- read_csv("esva-atlas-prototype/data/WhillisWarf_Isabel_detailed_output.csv")
+willis_wharf_2050 <- read_csv("esva-atlas-prototype/data/WhillisWarf_Isabel_future_detailed_output.csv")
 
-patch_geo <- st_read("esva-atlas-prototype/WhillisWarf_PatchID_DEM/WhillisWarf_PatchID_DEM.shp")
+patch_geo <- st_read("esva-atlas-prototype/data/WhillisWarf_PatchID_DEM/WhillisWarf_PatchID_DEM.shp")
 patch_geo <- st_transform(patch_geo, 4326)
 
 willis_wharf <- willis_wharf %>% left_join(patch_geo) %>% 
   st_as_sf()
 
-# willis_wharf %>% 
+willis_wharf_2050 <- willis_wharf_2050 %>% left_join(patch_geo) %>% 
+  st_as_sf()
+
+# willis_wharf_2050 %>%
 #   ggplot() +
 #   geom_sf(aes(fill = Max_m), color = "black")
-names(willis_wharf) <- c("PatchID", "X_m", "Y_m", "NAVD88ELEV_m", "Max Water Levels (m)", "Inundation Time", "DEM_m","geometry")
 
+new_names <- c("PatchID", "X_m", "Y_m", "NAVD88ELEV_m", "Max Water Levels (m)", "Inundation Time", "DEM_m","geometry")
+names(willis_wharf) <- new_names
+names(willis_wharf_2050) <- new_names
+
+# Metadata ----
 scenario_meta <- data.frame(scenario = c("Hurricane Isabel 2003", "Hurricane Isabel 2050 Projection", 
                                          "King Tide", "King Tide 2050 Projection"),
                             def = c("Historical Hurricane Isabel 2003 ADCIRC model run", 
@@ -183,6 +191,6 @@ save(counties_geo, blkgrp_geo, schools_sf,
      king_tide, king_tide_2050,
      storm_isabel_hm, storm_isabel_2050_hm, 
      king_tide_hm, king_tide_2050_hm,
-     willis_wharf, patch_geo,
+     willis_wharf, willis_wharf_2050, patch_geo,
      scenario_meta, variable_meta,
-     file = "esva-atlas-prototype/www/app_data_2024_07_30.Rdata")
+     file = "esva-atlas-prototype/www/app_data.Rdata")
