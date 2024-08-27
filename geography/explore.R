@@ -1,5 +1,6 @@
 # Eastern Shore Geometries
 # 2023-01-18
+# Updated 2024-08-26
 
 library(tidyverse)
 library(tigris)
@@ -30,9 +31,12 @@ places <- places(state = "51", cb = TRUE, year = 2021)
 es_places <- places %>%
   st_filter(es_county, .predicate = st_within)
 
+es_places <- es_places %>% 
+  mutate(inc_cdp = ifelse(str_detect(NAMELSAD, "CDP"), "CDP", "INC"))
+
 ggplot(es_places) +
   geom_sf(data = es_county, fill = "white") +
-  geom_sf(fill = "steelblue") +
+  geom_sf(aes(fill = inc_cdp)) +
   geom_sf_text(aes(label = NAME), 
                size = 2,
                fun.geometry = sf::st_centroid) +
@@ -45,7 +49,7 @@ ys <- lapply(centroids$geometry, function(x) x[2]) |> unlist()
 
 ggplot(es_places) +
   geom_sf(data = es_county, fill = "white") +
-  geom_sf(fill = "steelblue") +
+  geom_sf(aes(fill = inc_cdp)) +
   # ggrepel::geom_text_repel(aes(x = xs, y = ys, label = NAME), 
   #                          size = 2,
   #                          min.segment.length = 0,
@@ -53,6 +57,8 @@ ggplot(es_places) +
   #                          segment.alpha = .30
   # ) +
   theme_void()
+
+ggsave("incorporatedplaces_and_censusdesignatedplaces_counties.png")
 
 # only incorporated places
 # not cdp (census designated places)
@@ -91,12 +97,15 @@ ggplot(es_inc_places) +
   ) +
   theme_void()
 
+ggsave(file = "incorporated_places_counties.png")
+
 # area water (yes) ----
 es_awater <- area_water(state = "51", year = 2021,
                      county = c("001", "131"))
 
 ggplot(es_awater) +
   geom_sf() +
+  geom_sf(data = es_inc_places, fill = "steelblue") + 
   theme_void()
 
 # this is more what I want; how to clip off the ocean/bay water?
@@ -159,9 +168,35 @@ ggplot() +
 # https://stackoverflow.com/questions/49626233/plotting-static-base-map-underneath-a-sf-object
 # https://www.littlemissdata.com/blog/maps
 
-# start over with ggmap/basemaps and census tracts
-# tracts ----
-es_tracts <- tracts(state = "51", cb = TRUE, year = 2021, 
-                    county = c("001", "131"))
 
-ggsave(object, "file path")
+
+# Incorporated places with block group shapefile ----
+bg <- block_groups(state = "51", cb = TRUE, year = 2022, 
+                  county = c("001", "131"))
+ggplot(es_inc_places) +
+  geom_sf(data = bg, fill = "white") +
+  geom_sf(fill = "steelblue") +
+  ggrepel::geom_text_repel(aes(x = xs, y = ys, label = NAME), 
+                           size = 2,
+                           min.segment.length = 0,
+                           max.overlaps = Inf,
+                           segment.alpha = .30
+  ) +
+  theme_void()
+
+ggsave(file = "incorporated_places_blockgroups.png")
+
+cbg <- st_read("esva_2020blkgrp_clipped.geojson")
+
+ggplot(es_inc_places) +
+  geom_sf(data = cbg, fill = "white") +
+  geom_sf(fill = "steelblue") +
+  ggrepel::geom_text_repel(aes(x = xs, y = ys, label = NAME), 
+                           size = 2,
+                           min.segment.length = 0,
+                           max.overlaps = Inf,
+                           segment.alpha = .30
+  ) +
+  theme_void()
+
+ggsave(file = "incorporated_places_clippedblockgroups.png")
