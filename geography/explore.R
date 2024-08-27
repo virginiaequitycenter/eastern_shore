@@ -6,6 +6,7 @@ library(tigris)
 options(tigris_use_cache = TRUE)
 library(sf)
 library(ggmap)
+library(ggrepel)
 
 # counties ----
 county <- counties(state = "51", cb = TRUE, year = 2021)
@@ -30,7 +31,64 @@ es_places <- places %>%
   st_filter(es_county, .predicate = st_within)
 
 ggplot(es_places) +
-  geom_sf() +
+  geom_sf(data = es_county, fill = "white") +
+  geom_sf(fill = "steelblue") +
+  geom_sf_text(aes(label = NAME), 
+               size = 2,
+               fun.geometry = sf::st_centroid) +
+  theme_void()
+
+centroids <- sf::st_centroid(es_places)
+
+xs <- lapply(centroids$geometry, function(x) x[1]) |> unlist()
+ys <- lapply(centroids$geometry, function(x) x[2]) |> unlist()
+
+ggplot(es_places) +
+  geom_sf(data = es_county, fill = "white") +
+  geom_sf(fill = "steelblue") +
+  # ggrepel::geom_text_repel(aes(x = xs, y = ys, label = NAME), 
+  #                          size = 2,
+  #                          min.segment.length = 0,
+  #                          max.overlaps = Inf,
+  #                          segment.alpha = .30
+  # ) +
+  theme_void()
+
+# only incorporated places
+# not cdp (census designated places)
+es_inc_places <- es_places %>% 
+  filter(!str_detect(NAMELSAD, "CDP"))
+
+ggplot(es_inc_places) +
+  geom_sf(data = es_county, fill = "white") +
+  geom_sf(fill = "steelblue") +
+  geom_sf_text(aes(label = NAME), 
+               size = 2,
+               fun.geometry = sf::st_centroid) +
+  theme_void()
+
+
+centroids <- sf::st_centroid(es_inc_places)
+
+xs <- lapply(centroids$geometry, function(x) x[1]) |> unlist()
+ys <- lapply(centroids$geometry, function(x) x[2]) |> unlist()
+
+ggplot(es_inc_places) +
+  geom_sf(data = es_county, fill = "white") +
+  geom_sf(fill = "steelblue") +
+  ggrepel::geom_text_repel(aes(x = xs, y = ys, label = NAME),
+                           size = 2) +
+  theme_void()
+
+ggplot(es_inc_places) +
+  geom_sf(data = es_county, fill = "white") +
+  geom_sf(fill = "steelblue") +
+  ggrepel::geom_text_repel(aes(x = xs, y = ys, label = NAME), 
+                           size = 2,
+                           min.segment.length = 0,
+                           max.overlaps = Inf,
+                           segment.alpha = .30
+  ) +
   theme_void()
 
 # area water (yes) ----
@@ -81,6 +139,7 @@ es_lmark <- es_lmark %>%
   filter(!is.na(FULLNAME))
 
 ggplot(es_lmark) +
+  geom_sf(data = es_county, fill = "white") +
   geom_sf() +
   theme_void()
 
@@ -89,9 +148,8 @@ rm(county, landmarks, mil, places, rails, roads1, roads2, schools,
 
 # together?
 ggplot() +
-  geom_sf(data = es_county, color = "black") +
+  geom_sf(data = es_awater, color = "black") +
   geom_sf(data = es_roads2, color = "grey") +
-  geom_sf(data = es_rail, color = "orange") +
   theme_void()
 
 # better to use a basemap, i think...
@@ -106,4 +164,4 @@ ggplot() +
 es_tracts <- tracts(state = "51", cb = TRUE, year = 2021, 
                     county = c("001", "131"))
 
-
+ggsave(object, "file path")
