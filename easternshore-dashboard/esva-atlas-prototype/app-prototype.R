@@ -1,4 +1,5 @@
 # Eastern Shore of Virginia Climate Equity Atlas Prototype
+# Last deployed: 9/16/24
 
 library(shiny)
 library(tidyverse)

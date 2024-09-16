@@ -1,0 +1,13 @@
+name: esva-atlas-prototype
+title: esva-atlas-prototype
+username: virginiaequitycenter
+account: virginiaequitycenter
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12722773
+bundleId: 9108212
+url: https://virginiaequitycenter.shinyapps.io/esva-atlas-prototype/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app-data-prep.R|functions/utils.R|screenshots/app_alt_scale_map.png|screenshots/app_block_info.png|screenshots/app_risk_map.png|screenshots/app_risk_people_scatter.png|www/app_data_2024_07_26.Rdata|www/app_data_2024_07_30.Rdata|app_data|app_dev
