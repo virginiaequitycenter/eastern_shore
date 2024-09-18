@@ -1,5 +1,5 @@
 # Eastern Shore of Virginia Climate Equity Atlas Prototype
-# Last deployed: 9/16/24
+# Last deployed: 9/17/24
 
 library(shiny)
 library(tidyverse)
@@ -53,7 +53,12 @@ ui <- page_navbar(
           col_widths = c(3,6,3),
           row_heights = c(1),
           highchartOutput('heatmap'),
-          leafletOutput('map'),
+          layout_columns(
+            col_widths = 12,
+            row_heights = c(0.25,10),
+            htmlOutput("help_map"),
+            leafletOutput('map')
+          ),
           layout_columns(
             col_widths = 12,
             row_heights = c(3,2),
@@ -216,6 +221,11 @@ server <- function(input, output, session){
     )
   })
   
+  output$help_map <- renderUI({
+    HTML('<span style="color: rgb(51, 51, 51); font-size: 14px; font-family: Roboto Condensed;">
+         <em>Click on map areas for more details. Scroll down to see population characteristics.</em></span>'
+    )
+  })
 
   
   # Map ----
