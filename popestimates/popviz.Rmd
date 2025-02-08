@@ -1,0 +1,243 @@
+---
+title: "ESVA Population Summaries"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r prep}
+library(sf)
+library(jsonlite)
+library(tidyverse)
+library(patchwork)
+library(leaflet)
+
+### Blocks
+blocks <- st_read("cb/esva_2020block_clipped.geojson",
+                  quiet = TRUE)
+blocks <- st_transform(blocks, 4326)
+
+### Population
+pop <- read_csv("block_pop_data.csv") %>% 
+  mutate(GEOID = as.character(GEOID))
+
+### Storm surge
+ea_export <- fromJSON("ADCIRC_stormsurge/esva_Block20_IB2003_PeakWL_ea_exportV2.json") # not reading
+json <- fromJSON("ADCIRC_stormsurge/esva_Block20_IB2003_PeakWLV2.json")
+storm <- read_csv("ADCIRC_stormsurge/esva_Block20_IB2003_PeakWLV2.csv") %>% 
+  mutate(GEOID20 = as.character(GEOID20))
+
+## Combine data
+df <- left_join(blocks, pop, by=c("GEOID20"="GEOID")) %>%
+  left_join(storm, by = c("GEOID20"="GEOID20")) %>% 
+  st_drop_geometry()
+
+df_map <- left_join(blocks, storm, by = c("GEOID20"="GEOID20"))
+
+### Total population baselines
+pop_total <- pop %>% 
+  summarize(across(c(total:jobs_wac_hi), sum)) %>% 
+  mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
+         per_occupied_housing = (occupied_housing/total_housing)*100,
+         across(c(jobs_rac_low:jobs_rac_hi), ~ (.x/jobs_rac)*100, .names = "per_{.col}"),
+         across(c(jobs_wac_low:jobs_wac_hi), ~ (.x/jobs_wac)*100, .names = "per_{.col}"),
+         bin = "ESVA Total", event = "none")
+
+```
+
+## Map
+
+```{r map}
+# From Beth's leaflet
+region_bbox <- ea_export$regionBoundingBox
+bbox <- c(region_bbox$lonMin, region_bbox$latMin, region_bbox$lonMax, region_bbox$latMax)
+
+legend_breaks <- as.vector(ea_export$dataColumns$bins[[1]])
+legend_labels <- as.list(ea_export$dataColumns$labels[[1]])
+
+descriptionTitle <- ea_export$descriptionTitle
+
+# var1_name <- ea_export$dataColumns$name[1]
+var1_name = "MxWL_avg_ft"
+var1_name_index <- match(var1_name, json$schema$fields$name)
+var1_title <- json$schema$fields$title[var1_name_index]
+
+var2_name <- ea_export$dataColumns$name[2]
+var2_name_index <- match(var2_name, json$schema$fields$name)
+var2_title <- json$schema$fields$title[var2_name_index]
+
+m <- df_map
+
+var1 <- m[[var1_name]]
+var2 <- m[[var2_name]]
+
+breaks <- legend_breaks
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000"), sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+map <- leaflet(m) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  fitBounds(bbox[1], bbox[2], bbox[3], bbox[4]) %>% 
+  clearShapes() %>%
+  addPolygons(data = m,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(var1),
+              fillOpacity = 0.7,
+              group = var1_title) %>%
+  addPolygons(data = m,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2, 
+              fillColor = ~pal(var2),
+              fillOpacity = 0.7,
+              group = var2_title) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = ~gsub("\n", "<br>",
+                          stringr::str_wrap(descriptionTitle,
+                                            width = 20,
+                                            whitespace_only = FALSE)),
+            opacity = 0.7) %>% 
+  addLayersControl(
+    baseGroups = c(var1_title, var2_title),
+    options = layersControlOptions(collapsed = FALSE)
+  ) 
+
+map
+```
+
+```{r popfig}
+df <- df %>% 
+  mutate(bin = cut(MxWL_max_ft, 
+                     breaks = legend_breaks,
+                     labels = legend_labels,
+                     include.lowest = TRUE),
+         event = "stormsurge") 
+
+## Impact estimates
+df_impact <- df %>% 
+  group_by(bin, event) %>% 
+  summarize(across(c(total:jobs_wac_hi), sum)) %>% 
+  mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
+         per_occupied_housing = (occupied_housing/total_housing)*100,
+         across(c(jobs_rac_low:jobs_rac_hi), ~ (.x/jobs_rac)*100, .names = "per_{.col}"),
+         across(c(jobs_wac_low:jobs_wac_hi), ~ (.x/jobs_wac)*100, .names = "per_{.col}")) %>% 
+  ungroup() %>% 
+  mutate(per_total = (total/sum(total))*100,
+         per_housing = (total_housing/sum(total_housing))*100) 
+  
+df_impact_total <- bind_rows(df_impact, pop_total) %>% 
+  mutate(bin = factor(bin),
+         bin = fct_relevel(bin, "ESVA Total", after = 0))
+```
+
+## Population Impacts of Peak Surge
+
+### Distribution of overall population and housing
+
+```{r viz, fig.height=3}
+pal <- c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000")
+
+popvars <- select(df_impact_total, starts_with("per")) %>% names()
+poplabels <- c("Hispanic", "White", "Black", "American Indian/Alaskan Native",
+               "Asian", "Native Hawaiian/Pacific Islander", "Remaining Racial Categories",
+               "Multiracial", "Over 18", "Under 18", "Occupied Housing",
+               "By Residence", "Mid-wage (Residence)",
+               "High-wage (Residence)", "By Workplace",
+               "Mid-wage (Workplace)", "High-wage (Workplace)",
+               "Total Population", "Total Housing Stock")
+
+storm_plots_bar_tot <- map2(popvars[18:19], poplabels[18:19], 
+                    ~ df_impact_total %>% 
+                      filter(event == "stormsurge") %>% 
+                      ggplot(aes(x = bin, y = .data[[.x]])) +
+                      geom_col(aes(fill = bin)) +
+                      geom_text(aes(y = .data[[.x]], 
+                                    label = round(.data[[.x]], 1)),
+                                vjust = 1, color = "black") +
+                      scale_fill_manual(values = pal, na.value="grey", guide = "none") +
+                      labs(title = paste0("Percent of: ", .y),
+                           subtitle = "By Impact",
+                           x = "", y = "") +
+                      theme_classic())
+
+wrap_plots(storm_plots_bar_tot, ncol = 2)
+
+```
+
+```{r viz2, fig.height=3}
+storm_plots_bar <- map2(popvars[c(2,3,1,8,5,4,7,6,9,10,12,15,13,14,16,17)], poplabels[c(2,3,1,8,5,4,7,6,9,10,12,15,13,14,16,17)], 
+                    ~ df_impact_total %>% 
+                     filter(event == "stormsurge") %>% 
+                     ggplot(aes(x = bin, y = .data[[.x]])) +
+                     geom_col(aes(fill = bin)) +
+                     geom_text(aes(y = .data[[.x]], 
+                                   label = round(.data[[.x]], 1)),
+                               vjust = 1, color = "black") +
+  geom_hline(aes(yintercept = df_impact_total %>% 
+                   filter(bin == "ESVA Total") %>% 
+                   pull(.x)), color = "brown4", linetype = 2) +
+    expand_limits(x= c(1, 8)) +
+    annotate("text", x = 7, label = "ESVA\nTotal", color = "brown4",
+             y = df_impact_total %>% 
+               filter(event == "none") %>% 
+               pull(.x)) +   
+    scale_fill_manual(values = pal, na.value="grey", guide = "none") +
+    labs(title = paste0("Percent of Residents: ", .y),
+       subtitle = "By Impact",
+       x = "", y = "") +
+  theme_classic())
+```
+
+### Distribution of population by Racial Identity
+
+#### Racial identity categories with > 500 estimated residents 
+
+```{r, fig.height=7}
+wrap_plots(storm_plots_bar[1:4], ncol = 2)
+```
+
+#### Racial identity categories with < 200 estimated residents
+
+```{r, fig.height=7}
+wrap_plots(storm_plots_bar[5:8], ncol = 2)
+```
+
+### Distribution of population by Age
+
+```{r, fig.height=3}
+wrap_plots(storm_plots_bar[9:10], ncol = 2)
+```
+
+### Distribution of population by Low-Wage Workers
+
+Earning $1,250/month or less
+
+```{r, fig.height=3}
+wrap_plots(storm_plots_bar[11:12], ncol = 2)
+```
+
+#### Distribution of Other Workers by Residence
+
+Mid-wage: $1,251-$3,333/month; High-wage: More than $3,333/month
+
+```{r, fig.height=3}
+wrap_plots(storm_plots_bar[13:14], ncol = 2)
+```
+
+#### Distribution of Other Workers by Workplace
+
+Mid-wage: $1,251-$3,333/month; High-wage: More than $3,333/month
+
+```{r, fig.height=3}
+wrap_plots(storm_plots_bar[15:16], ncol = 2)
+```
