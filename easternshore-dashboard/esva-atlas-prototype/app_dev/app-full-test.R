@@ -12,12 +12,16 @@ library(RColorBrewer)
 library(tigris)
 options(tigris_use_cache = TRUE)
 library(highcharter)
+library(here)
+
+# Set WD
+setwd(here("esva-atlas-prototype"))
 
 source("functions/utils.R")
 
-es_blkgrp <- readRDS("www/flood_composite_blkgrp.RDS")
-blkgrp_names <- read_excel("www/tract_names.xlsx", sheet = "blkgrp2020")
-pop <- read_csv("www/population_blkgrp.csv")
+es_blkgrp <- readRDS("app_data/flood_composite_blkgrp.RDS")
+blkgrp_names <- read_excel("app_data/tract_names.xlsx", sheet = "blkgrp2020")
+pop <- read_csv("app_data/population_blkgrp.csv")
 # data <- read_csv("blkgrp_pop_data.csv")
 schools_sf <- st_read("../data/schools_sf.geojson")
 
