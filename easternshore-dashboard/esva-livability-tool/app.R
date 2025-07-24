@@ -114,7 +114,7 @@ server <- function(input, output, session){
  event_meas_descript <- reactive({
    d <- dm()
    d <- d$field_description
-   print(d)
+   # print(d)
  })
  
  event_year <- reactive({
