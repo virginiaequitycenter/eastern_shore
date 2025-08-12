@@ -17,19 +17,19 @@ setwd(here("esva-livability-tool"))
 readRenviron("~/.Renviron")
 box_auth(client_id = Sys.getenv('BOX_CLIENT_ID'), client_secret = Sys.getenv('BOX_CLIENT_SECRET'))
 
-# Get Box Data
-dir_id <- "305971996036" # EA_Export
-box_setwd(dir_id)
-
-# box_ls()
-
-box_fetch(
-  dir_id = box_getwd(),
-  local_dir = "app_data/app_data_updated",
-  recursive = TRUE,
-  overwrite = TRUE,
-  delete = TRUE
-)
+# # Get Box Data
+# dir_id <- "305971996036" # EA_Export
+# box_setwd(dir_id)
+# 
+# # box_ls()
+# 
+# box_fetch(
+#   dir_id = box_getwd(),
+#   local_dir = "app_data/app_data_updated",
+#   recursive = TRUE,
+#   overwrite = TRUE,
+#   delete = TRUE
+# )
 
 # Data prep ----
 
@@ -43,6 +43,20 @@ get_boxid <- function(path) {
 block_geo <- st_read("data/blocks/esva_2020block_clipped.geojson")
 block_geo <- st_transform(block_geo, 4326) %>% 
   select(GEOID20)
+
+# Population data ---
+pop_dat <- box_read_csv("1883093293417") %>% 
+  mutate(GEOID20 = as.character(GEOID)) %>% 
+  select(GEOID20, total, hisp, black, white, pop_under18, total_housing, occupied_housing, jobs_wac, jobs_wac_low)
+
+## Total population baselines ----
+pop_total <- pop_dat %>% 
+  summarize(across(c(total:jobs_wac_low), sum)) %>% 
+  mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
+         per_occupied_housing = (occupied_housing/total_housing)*100,
+         across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}"),
+         bin = "ESVA Total", event = "none")
+
 
 # Data prep function
 ea_prep_func <- function(eafile) {
@@ -64,6 +78,11 @@ ea_prep_func <- function(eafile) {
     mutate(GEOID20 = as.character(GEOID20)) %>% 
     left_join(block_geo, by = join_by(GEOID20 == GEOID20)) %>% 
     st_as_sf()
+  
+  # Join with population data
+  csv_pop <- csv %>% 
+    mutate(GEOID20 = as.character(GEOID20)) %>% 
+    left_join(pop_dat, by = join_by(GEOID20 == GEOID20))
   
   # Gather data for app
   region_bbox <- ea_export$regionBoundingBox
@@ -90,11 +109,41 @@ ea_prep_func <- function(eafile) {
 
     legend_breaks <- as.vector(ea_export$dataColumns$bins[[i]])
     legend_labels <- as.list(ea_export$dataColumns$labels[[i]])
+    
+    # binning function
+    bin_function <- function(name) {
+      var_name_bin = cut(name,
+                         breaks = legend_breaks,
+                         labels = legend_labels,
+                         include.lowest = TRUE)
+    }
+    
+    # create bin_ variable for each variable identified in ea json
+    csv_pop <- csv_pop %>% 
+      mutate(across(all_of(name), bin_function,
+                    .names = "bin_{.col}"),
+             event = event)
+    
+    group_vars <- syms(csv_pop %>% select(starts_with("bin")) %>% names())
+    
+    pop_data <- csv_pop %>% 
+      group_by(!!group_vars[[1]], event) %>% 
+      summarize(across(c(total:jobs_wac_low), sum)) %>% 
+      mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
+             per_occupied_housing = (occupied_housing/total_housing)*100,
+             across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}")) %>% 
+      ungroup() %>% 
+      mutate(per_total = (total/sum(total))*100,
+             per_housing = (total_housing/sum(total_housing))*100) %>% 
+      rename(bin = group_vars[[1]]) %>% 
+      bind_rows(pop_total) %>% 
+      mutate(bin = factor(bin, levels = c(legend_labels, "ESVA Total"))) %>% 
+      select(bin, event, starts_with("per_"))
 
     ls_name <- as.character(title)
     ls_name
     ls <- list(name=name, map_data=map_data, title=title, field_description=field_description, 
-               legend_breaks=legend_breaks, legend_labels=legend_labels)
+               legend_breaks=legend_breaks, legend_labels=legend_labels, pop_data=pop_data)
     # print(ls)
     # measures <- list(title=ls)
     measures <- append(measures, setNames(list(ls), as.character(title)))
