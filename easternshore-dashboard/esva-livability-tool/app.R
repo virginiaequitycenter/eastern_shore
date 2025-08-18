@@ -11,16 +11,13 @@ library(qs)
 library(highcharter)
 library(rcartocolor)
 
-colors <- carto_pal(6, "RedOr")
 # Read in data
 app_dat <- qs::qread("app_data_test.qs")
 
-input_choices = names(app_dat) 
-# input_years = names(app_dat[[1]])
-# input_measures = names(app_dat[[1]][[1]][["measures"]])
+input_choices = names(app_dat)
 
 ui <- page_sidebar(
-  title = "ESVA Livability Tool",
+  title = "Eastern Shore of Virginia Livability Tool",
   fillable = FALSE,
   sidebar = sidebar(
     selectInput(
@@ -42,26 +39,67 @@ ui <- page_sidebar(
     ),
   layout_columns(
     col_widths = 12,
-    row_heights = c(1,2),
+    # row_heights = c(3,1,1,1,1),
     layout_columns(
       col_widths = c(8,4),
-      # row_heights = c(1),
-      leafletOutput('map', width="100%", height = "600px"),
-      htmlOutput("scenario_meta")
+      leafletOutput('map', width="100%", height = "650px"),
+      layout_columns(
+        col_widths = 12,
+        fill = FALSE,
+        card(
+          class = "shadow-none",
+          card_header(class= "p-1 m-0",
+                      "Selected Measure"),
+          card_body(class= "p-1 m-0",
+                    htmlOutput("meta_measure"))
+        ),
+        card(
+          class = "shadow-none",
+          card_header(class= "p-1 m-0",
+                      "Selected Measure Description"),
+          card_body(class= "p-1 m-0",
+                    htmlOutput("meta_descrip"))
+        ),
+        card(
+          class = "shadow-none",
+          card_header(class= "p-1 m-0",
+                      "Selected Year"),
+          card_body(class= "p-1 m-0",
+                    htmlOutput("meta_year"))
+        ),
+        card(
+          class = "shadow-none",
+          card_header(class= "p-1 m-0",
+                      "More Information"),
+          card_body(class= "p-1 m-0",
+                    htmlOutput("meta_info"))
+        )
+        # htmlOutput("scenario_meta")
+      )
     ),
-    card(card_header("Population Impacts"),
+    # card(card_header("Population Impacts"),
+         # max_height = "1300px",
+         card(class= "bg-light fs-5 shadow-none",
+              "What percent of the ESVA's housing or people are in areas estimated to experience each outcome?"),
          layout_column_wrap(
-             highchartOutput('totalplot'),
-             highchartOutput('houseplot'),
-             highchartOutput('blackplot'),
-             highchartOutput('whiteplot'),
-             highchartOutput('hispplot'),
-             highchartOutput('ageplot'),
-             highchartOutput('wageplot'),
-             width = 1/3
-           )
-           
-         )
+           highchartOutput('houseplot'),
+           highchartOutput('totalplot'),
+           width = 1/2),
+    card(class= "bg-light fs-5 shadow-none",
+         "What percent of each group are in areas estimated to experience each outcome relative to the percent each group makes up in the ESVA's population?",
+         card_body(
+           class = "fs-6",
+           "Values above the line mean a group is overrepresented for the outcome relative to their presence in the overall population. Values below the line mean a group is underrepresented for the outcome relative to their presence in the overall population."
+           ),
+         ),
+         layout_column_wrap(
+           highchartOutput('blackplot'),
+           highchartOutput('whiteplot'),
+           highchartOutput('hispplot'),
+           highchartOutput('ageplot'),
+           highchartOutput('wageplot'),
+           width = 1/3)
+         # ) # end card
     )
   
 ) # end page_navbar
@@ -121,26 +159,34 @@ server <- function(input, output, session){
    d <- d$descriptionTitle
  })
  
+ output$meta_measure <- renderUI({event_title()})
+ 
  event_meas_descript <- reactive({
    d <- dm()
    d <- d$field_description
  })
  
+ output$meta_descrip <- renderUI({event_meas_descript()})
+ 
  event_year <- reactive({
    d <- dw()
    d <- d$year
  })
+ 
+ output$meta_year <- renderUI({event_year()})
 
  event_description <- reactive({
    d <- dw()
    d <- d$description
  })
+ 
+ output$meta_info <- renderUI({event_description()})
 
  output$scenario_meta <- renderUI({
-   HTML(paste0('<span><small>Selected Measure:</small><br/><b>', event_title(), '</b></span><br/><br/>',
-               '<span><small>Selected Measure Description:</small><br/>', event_meas_descript(), '</span><br/><br/>',
-               '<span><small>Selected Year:</small><br/>', event_year(), '</span><br/><br/>',
-               '<span><small>More Information:</small><br/>', event_description(), '</span><br/>'
+   HTML(paste0('<span><small>Selected Measure:</small><br/><b>', event_title(), '</b></span><br/>',
+               '<span><small>Selected Measure Description:</small><br/>', event_meas_descript(), '</span><br/>',
+               '<span><small>Selected Year:</small><br/>', event_year(), '</span><br/>',
+               '<span><small>More Information:</small><br/>', event_description(), '</span>'
    )
    )
  })
@@ -180,7 +226,7 @@ server <- function(input, output, session){
                     smoothFactor = 0.2,
                     fillOpacity = 0.6,
                     fillColor = ~pal(var),
-                    label = lapply(as.list(var), HTML),
+                    label = lapply(as.list(round(var,2)), HTML),
                     group = var_title) %>%
         addLegend(position = 'topright',
                   pal = pal,
@@ -215,19 +261,30 @@ server <- function(input, output, session){
     name <- as.character(p$name)
     var <- p$map_data[[`name`]]
 
-    breaks <- p$legend_breaks
+    # breaks <- p$legend_breaks
     
-    sel_range <- c(min(breaks), max(breaks))
+    # sel_range <- c(min(breaks), max(breaks))
 
-    pal <- colorBin(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000"),
-                    sel_range,
-                    bins = breaks,
+    # pal <- colorBin(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000"),
+    #                 sel_range,
+    #                 bins = breaks,
+    #                 right = TRUE,
+    #                 # reverse = TRUE,
+    #                 na.color = "#808080",
+    #                 pretty = FALSE )
+   
+    
+    pal <- colorBin(
+      # brewer.pal(length(p$legend_labels), "YlGnBu"),
+      p$col_pal,
+                    p$sel_range,
+                    bins = p$legend_breaks,
                     right = TRUE,
-                    # reverse = TRUE,
+                    # reverse = p$reverse_pal,
                     na.color = "#808080",
                     pretty = FALSE )
     
-    mapProxyFunction(p$map_data, "map", var, p$title, p$legend_labels, pal, sel_range)
+    mapProxyFunction(p$map_data, "map", var, p$title, p$legend_labels, pal, p$sel_range)
       
     })
 
@@ -308,7 +365,9 @@ server <- function(input, output, session){
     cat_labels <- td$legend_labels
     # print(length(cat_labels))
     # 
-    pal <- carto_pal(length(cat_labels), "RedOr")
+    # pal <- carto_pal(length(cat_labels), "RedOr")
+    # pal <- rev(brewer.pal(length(cat_labels), "YlGnBu"))
+    pal <- td$col_pal
     # 
     # names(pal) <- cat_labels
     # 
@@ -381,7 +440,7 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-    pal <- carto_pal(length(cat_labels), "RedOr")
+    pal <- td$col_pal
     
     chart_dat <- td$pop_data
     
@@ -408,7 +467,7 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-    pal <- carto_pal(length(cat_labels), "RedOr")
+    pal <- td$col_pal
     
     chart_dat <- td$pop_data
     
@@ -435,7 +494,7 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-    pal <- carto_pal(length(cat_labels), "RedOr")
+    pal <- td$col_pal
     
     chart_dat <- td$pop_data
     
@@ -462,7 +521,7 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-    pal <- carto_pal(length(cat_labels), "RedOr")
+    pal <- td$col_pal
     
     chart_dat <- td$pop_data
     
@@ -488,7 +547,7 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-    pal <- carto_pal(length(cat_labels), "RedOr")
+    pal <- td$col_pal
     
     chart_dat <- td$pop_data
     
@@ -515,7 +574,7 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-    pal <- carto_pal(length(cat_labels), "RedOr")
+    pal <- td$col_pal
     
     chart_dat <- td$pop_data
     

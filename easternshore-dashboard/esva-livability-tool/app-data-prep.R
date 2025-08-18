@@ -7,6 +7,7 @@ library(jsonlite)
 library(sf)
 library(leaflet)
 library(RColorBrewer)
+library(rcartocolor)
 library(bslib)
 library(qs)
 
@@ -80,9 +81,9 @@ ea_prep_func <- function(eafile) {
     st_as_sf()
   
   # Join with population data
-  csv_pop <- csv %>% 
-    mutate(GEOID20 = as.character(GEOID20)) %>% 
-    left_join(pop_dat, by = join_by(GEOID20 == GEOID20))
+  # csv_pop <- csv %>% 
+  #   mutate(GEOID20 = as.character(GEOID20)) %>% 
+  #   left_join(pop_dat, by = join_by(GEOID20 == GEOID20))
   
   # Gather data for app
   region_bbox <- ea_export$regionBoundingBox
@@ -100,15 +101,36 @@ ea_prep_func <- function(eafile) {
     name_index <- match(name, json$schema$fields$name)
     title <- json$schema$fields$title[name_index]
     field_description <- json$schema$fields$description[name_index]
-    # print(title)
+    # print(name)
     
     var <- quo(name)
     map_data <- csv_geo %>% select(GEOID20, UQ(var), geometry)
-    
-    # print(dat)
-
+    # print(var)
     legend_breaks <- as.vector(ea_export$dataColumns$bins[[i]])
     legend_labels <- as.list(ea_export$dataColumns$labels[[i]])
+    
+    sel_range <- c(min(legend_breaks), max(legend_breaks))
+    # print(str_detect(event, "groundwater"))
+    
+    col_pal <- if(str_detect(event, "groundwater")){
+      rev(brewer.pal(length(legend_labels), "YlGnBu"))
+    } else if (str_detect(event, "Extreme")){
+      brewer.pal(length(legend_labels), "BrBG")
+    } else {brewer.pal(length(legend_labels), "YlGnBu")}
+    
+    # reverse_pal <- TRUE
+    
+    # pal <- colorBin(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000"),
+    #                 sel_range,
+    #                 bins = legend_breaks,
+    #                 right = TRUE,
+    #                 # reverse = TRUE,
+    #                 na.color = "#808080",
+    #                 pretty = FALSE )
+    
+    csv_pop <- map_data %>% 
+      left_join(pop_dat, by = join_by(GEOID20 == GEOID20)) %>% 
+      st_drop_geometry()
     
     # binning function
     bin_function <- function(name) {
@@ -120,14 +142,15 @@ ea_prep_func <- function(eafile) {
     
     # create bin_ variable for each variable identified in ea json
     csv_pop <- csv_pop %>% 
-      mutate(across(all_of(name), bin_function,
+      mutate(
+        across(name, bin_function,
                     .names = "bin_{.col}"),
              event = event)
     
     group_vars <- syms(csv_pop %>% select(starts_with("bin")) %>% names())
     
     pop_data <- csv_pop %>% 
-      group_by(!!group_vars[[1]], event) %>% 
+      group_by(!!group_vars[[1]], event) %>%
       summarize(across(c(total:jobs_wac_low), sum)) %>% 
       mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
              per_occupied_housing = (occupied_housing/total_housing)*100,
@@ -135,7 +158,7 @@ ea_prep_func <- function(eafile) {
       ungroup() %>% 
       mutate(per_total = (total/sum(total))*100,
              per_housing = (total_housing/sum(total_housing))*100) %>% 
-      rename(bin = group_vars[[1]]) %>% 
+      rename(bin = group_vars[[1]]) %>%
       bind_rows(pop_total) %>% 
       mutate(bin = factor(bin, levels = c(legend_labels, "ESVA Total"))) %>% 
       select(bin, event, starts_with("per_"))
@@ -143,7 +166,8 @@ ea_prep_func <- function(eafile) {
     ls_name <- as.character(title)
     ls_name
     ls <- list(name=name, map_data=map_data, title=title, field_description=field_description, 
-               legend_breaks=legend_breaks, legend_labels=legend_labels, pop_data=pop_data)
+               legend_breaks=legend_breaks, legend_labels=legend_labels, sel_range=sel_range, 
+               col_pal=col_pal, pop_data=pop_data)
     # print(ls)
     # measures <- list(title=ls)
     measures <- append(measures, setNames(list(ls), as.character(title)))
