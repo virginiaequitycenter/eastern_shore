@@ -11,6 +11,8 @@ library(qs)
 library(highcharter)
 library(rcartocolor)
 
+
+
 # Read in data
 app_dat <- qs::qread("app_data_test.qs")
 
@@ -97,6 +99,7 @@ ui <- page_sidebar(
            highchartOutput('whiteplot'),
            highchartOutput('hispplot'),
            highchartOutput('ageplot'),
+           highchartOutput('wagehomeplot'),
            highchartOutput('wageplot'),
            width = 1/3)
          # ) # end card
@@ -118,6 +121,7 @@ server <- function(input, output, session){
   observeEvent(scenario_ww(), {
     choices <- names(scenario_ww())
     freezeReactiveValue(input, "scenario_yr")
+    freezeReactiveValue(input, "scenario_m")
     updateSelectInput(inputId = "scenario_yr", choices = choices)
   })
   
@@ -141,7 +145,7 @@ server <- function(input, output, session){
     yr <- as.character(input$scenario_yr)
     d <- scenario_ww()[[`yr`]]
 
-  })
+  }) 
  
  dm <- reactive({
    ms <- as.character(input$scenario_m)
@@ -182,15 +186,21 @@ server <- function(input, output, session){
  
  output$meta_info <- renderUI({event_description()})
 
- output$scenario_meta <- renderUI({
-   HTML(paste0('<span><small>Selected Measure:</small><br/><b>', event_title(), '</b></span><br/>',
-               '<span><small>Selected Measure Description:</small><br/>', event_meas_descript(), '</span><br/>',
-               '<span><small>Selected Year:</small><br/>', event_year(), '</span><br/>',
-               '<span><small>More Information:</small><br/>', event_description(), '</span>'
-   )
-   )
- })
-  
+ # output$scenario_meta <- renderUI({
+ #   HTML(paste0('<span><small>Selected Measure:</small><br/><b>', event_title(), '</b></span><br/>',
+ #               '<span><small>Selected Measure Description:</small><br/>', event_meas_descript(), '</span><br/>',
+ #               '<span><small>Selected Year:</small><br/>', event_year(), '</span><br/>',
+ #               '<span><small>More Information:</small><br/>', event_description(), '</span>'
+ #   )
+ #   )
+ # })
+
+ 
+ listen_scen <- reactive(input$scenario_ww)
+ 
+ listen_yr <- reactive(input$scenario_yr)
+ 
+ listen_m <- reactive(input$scenario_m)
 
   # Map Functions -------------------------------------------------------
   ## Leaflet base map function ----
@@ -210,7 +220,7 @@ server <- function(input, output, session){
   mapProxyFunction <- function(mapData, mapId,
                                var, var_title,
                                legend_labels,
-                               pal, sel_range){
+                               pal, sel_range, unit){
 
     # map proxy
     proxy <- leafletProxy(mapId, data = mapData)
@@ -226,7 +236,7 @@ server <- function(input, output, session){
                     smoothFactor = 0.2,
                     fillOpacity = 0.6,
                     fillColor = ~pal(var),
-                    label = lapply(as.list(round(var,2)), HTML),
+                    label = lapply(as.list(paste0(round(var,2), " ", unit)), HTML),
                     group = var_title) %>%
         addLegend(position = 'topright',
                   pal = pal,
@@ -242,12 +252,6 @@ server <- function(input, output, session){
     })
   }
 
-  listen_scen <- reactive(input$scenario_ww)
-
-  listen_yr <- reactive(input$scenario_yr)
-  
-  listen_m <- reactive(input$scenario_m)
-
 
   # Build Map -------------------------------------------------------
 
@@ -257,34 +261,20 @@ server <- function(input, output, session){
   observeEvent(list(listen_scen(), listen_yr(), listen_m()), {
 
     p <- dm()
-
+    
     name <- as.character(p$name)
-    var <- p$map_data[[`name`]]
-
-    # breaks <- p$legend_breaks
+    # var <- p$map_data[[`name`]]
     
-    # sel_range <- c(min(breaks), max(breaks))
-
-    # pal <- colorBin(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000"),
-    #                 sel_range,
-    #                 bins = breaks,
-    #                 right = TRUE,
-    #                 # reverse = TRUE,
-    #                 na.color = "#808080",
-    #                 pretty = FALSE )
-   
-    
-    pal <- colorBin(
-      # brewer.pal(length(p$legend_labels), "YlGnBu"),
-      p$col_pal,
+    pal <- colorBin(p$col_pal,
                     p$sel_range,
                     bins = p$legend_breaks,
                     right = TRUE,
-                    # reverse = p$reverse_pal,
-                    na.color = "#808080",
+                    # reverse = FALSE,
+                    # na.color = "#808080",
                     pretty = FALSE )
+
     
-    mapProxyFunction(p$map_data, "map", var, p$title, p$legend_labels, pal, p$sel_range)
+    mapProxyFunction(p$map_data, "map", p$map_data[[`name`]], p$title, p$legend_labels, pal, p$sel_range, p$unit)
       
     })
 
@@ -320,8 +310,6 @@ server <- function(input, output, session){
     y <- enexpr(y)
     col <- enexpr(col)
     
-    # chart_pal <- carto_pal(num, "RedOr")
-    
     chart <- chart_dat %>%
       filter(event != "none") %>%
       hchart('column', hcaes(x = !!x, y = !!y, color = !!col)) %>% 
@@ -346,10 +334,12 @@ server <- function(input, output, session){
       # hc_colors(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000")) %>%
       # hc_colors(chart_pal) %>% 
       hc_plotOptions(series = list(dataLabels = list(format = '{y}%', enabled = TRUE),
-                                   colorByPoint = TRUE)) %>%
-      hc_tooltip(formatter = JS("function(){
-  return '<b>' + this.key + '</b></br>Percent Impacted: <b>' + this.y + '%' + '</b>'
-  }")) %>%
+                                   colorByPoint = TRUE,
+                                   states = list(hover = list(enabled = FALSE)))) %>%
+  #     hc_tooltip(formatter = JS("function(){
+  # return '<b>' + this.key + '</b></br>Percent Impacted: <b>' + this.y + '%' + '</b>'
+  # }")) %>%
+      
       hc_title(text = chart_title,
                align = 'left') %>%
       hc_add_theme(hc_theme_smpl())
@@ -363,22 +353,10 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-    # print(length(cat_labels))
-    # 
-    # pal <- carto_pal(length(cat_labels), "RedOr")
+
+    # pal <- carto_pal(length(cat_labels), "Mint")
     # pal <- rev(brewer.pal(length(cat_labels), "YlGnBu"))
     pal <- td$col_pal
-    # 
-    # names(pal) <- cat_labels
-    # 
-    # pal <- c(pal, "#808080")
-    # 
-    # 
-    # cat_labels <- factor(levels=cat_labels)
-    # null <- factor(levels = c("N/A"))
-    # names(pal) <- levels(factor(c(levels(cat_labels), levels(null))))
-    # # pal <- c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000")
-    # print(pal)
     
     chart_dat <- td$pop_data
   
@@ -390,47 +368,21 @@ server <- function(input, output, session){
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
              )
-    
-    # print(chart_dat$color_bin)
 
     chart_tot <- chart_dat %>% 
       filter(event == "none") %>% 
       pull(per_hisp)
     
+    
     cat_num <- chart_dat %>% 
       filter(event != "none") 
     
-    chart_func(chart_dat, bin, per_hisp, color_bin, td$title, chart_tot, 'Hispanic Residents')
     
-  #   chart <- chart_dat %>%
-  #     filter(event != "none") %>%
-  #     hchart('column', hcaes(x = bin, y = round(per_hisp,0))) %>% 
-  #     hc_legend(enabled = FALSE) %>%
-  #     hc_xAxis(title = list(text = td$title), 
-  #              labels = list(style = list(fontSize = '1.2em'))) %>%
-  #     hc_yAxis(min = 0,
-  #              max = 40,
-  #              title = list(text = "Percent Impacted", style = list(fontSize = '1.2em')),
-  #              labels = list(format = '{text}%'),
-  #              plotLines = list(
-  #                list(
-  #                  label = list(text = "ESVA Total"),
-  #                  width = 2,
-  #                  value = chart_tot,
-  #                  zIndex = 1,
-  #                  dashStyle = "LongDash"
-  #                )
-  #              )) %>%
-  #     # hc_colors(c('#3B8EA5')) %>%
-  #     hc_plotOptions(series = list(dataLabels = list(format = '{y}%', enabled = TRUE))) %>%
-  #     hc_tooltip(formatter = JS("function(){
-  # return '<b>' + this.key + '</b></br>Percent Impacted: <b>' + this.y + '%' + '</b>'
-  # }")) %>%
-  #     hc_title(text = paste0('Hispanic Residents Impacted'),
-  #              align = 'left') %>%
-  #     hc_add_theme(hc_theme_smpl())
-  #   
-  #   chart
+    
+    chart_func(chart_dat, bin, per_hisp, color_bin, td$title, chart_tot, 'Hispanic Residents') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return 'Hispanic Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  }"))
     
   })
   
@@ -457,7 +409,10 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_black)
     
-    chart_func(chart_dat, bin, per_black, color_bin, td$title, chart_tot, 'Black Residents')
+    chart_func(chart_dat, bin, per_black, color_bin, td$title, chart_tot, 'Black Residents') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return 'Black Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  }"))
     
   })
   
@@ -484,7 +439,10 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_white)
     
-    chart_func(chart_dat, bin, per_white, color_bin, td$title, chart_tot, 'White Residents')
+    chart_func(chart_dat, bin, per_white, color_bin, td$title, chart_tot, 'White Residents') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return 'White Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  }"))
     
   })
   
@@ -511,7 +469,39 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_pop_under18)
     
-    chart_func(chart_dat, bin, per_pop_under18, color_bin, td$title, chart_tot, 'Residents Under 18 yrs')
+    chart_func(chart_dat, bin, per_pop_under18, color_bin, td$title, chart_tot, 'Residents Under 18 yrs') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return 'Residents under 18 yrs old make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  }"))
+    
+  })
+  
+  # Low wage workers by residence plot ----
+  output$wagehomeplot <- renderHighchart({
+    
+    td <- dm()
+    
+    cat_labels <- td$legend_labels
+    pal <- td$col_pal
+    
+    chart_dat <- td$pop_data
+    
+    chart_dat <- chart_dat %>% 
+      mutate(bin = case_when(is.na(bin) ~ "N/A",
+                             .default = bin),
+             per_jobs_rac_low = round(per_jobs_rac_low,0),
+             color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
+             color_bin = case_when(is.na(color_index) ~ "#808080",
+                                   .default = pal[color_index]))
+    
+    chart_tot <- chart_dat %>% 
+      filter(event == "none") %>% 
+      pull(per_jobs_wac_low)
+    
+    chart_func(chart_dat, bin, per_jobs_rac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Residence') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return 'Residents in Low Wage jobs by residence make up <br/><b>' + this.y + '%' + '</b> of the population in areas experiencing<br/>the outcome: <b>' + this.key + '</b><br/>'
+  }"))
     
   })
   
@@ -537,7 +527,10 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_jobs_wac_low)
     
-    chart_func(chart_dat, bin, per_jobs_wac_low, color_bin, td$title, chart_tot, 'Residents in Low Wage Jobs by Workplace')
+    chart_func(chart_dat, bin, per_jobs_wac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Workplace') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return 'Residents in Low Wage jobs by workplace make up <br/><b>' + this.y + '%' + '</b> of the population in areas experiencing<br/>the outcome: <b>' + this.key + '</b><br/>'
+  }"))
     
   })
   
@@ -564,7 +557,10 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_total)
     
-    chart_func(chart_dat, bin, per_total, color_bin, td$title, chart_tot, 'Total Population')
+    chart_func(chart_dat, bin, per_total, color_bin, td$title, chart_tot, 'Total Population') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return '<b>' + this.y + '%' + '</b> of the population of the ESVA live in<br/>areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  }"))
     
   })
   
@@ -591,7 +587,10 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_housing)
     
-    chart_func(chart_dat, bin, per_housing, color_bin, td$title, chart_tot, 'Total Housing')
+    chart_func(chart_dat, bin, per_housing, color_bin, td$title, chart_tot, 'Total Housing') %>% 
+      hc_tooltip(formatter = JS("function(){
+  return '<b>' + this.y + '%' + '</b> of the housing stock on the ESVA are in<br/>areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  }"))
     
   })
   

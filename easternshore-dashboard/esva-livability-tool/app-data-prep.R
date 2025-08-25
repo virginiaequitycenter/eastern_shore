@@ -48,18 +48,19 @@ block_geo <- st_transform(block_geo, 4326) %>%
 # Population data ---
 pop_dat <- box_read_csv("1883093293417") %>% 
   mutate(GEOID20 = as.character(GEOID)) %>% 
-  select(GEOID20, total, hisp, black, white, pop_under18, total_housing, occupied_housing, jobs_wac, jobs_wac_low)
+  select(GEOID20, total, hisp, black, white, pop_under18, total_housing, occupied_housing, jobs_wac, jobs_wac_low, jobs_rac, jobs_rac_low)
 
 ## Total population baselines ----
 pop_total <- pop_dat %>% 
-  summarize(across(c(total:jobs_wac_low), sum)) %>% 
+  summarize(across(c(total:jobs_rac_low), sum)) %>% 
   mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
          per_occupied_housing = (occupied_housing/total_housing)*100,
+         across(c(jobs_rac_low), ~ (.x/jobs_rac)*100, .names = "per_{.col}"),
          across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}"),
          bin = "ESVA Total", event = "none")
 
 
-# Data prep function
+# Data prep function ----
 ea_prep_func <- function(eafile) {
   
   # Read in ea_export
@@ -101,7 +102,13 @@ ea_prep_func <- function(eafile) {
     name_index <- match(name, json$schema$fields$name)
     title <- json$schema$fields$title[name_index]
     field_description <- json$schema$fields$description[name_index]
-    # print(name)
+
+    # print(names(json$schema$fields))
+    unit <- if("unit" %in% names(json$schema$fields)){
+      n <- json$schema$fields$unit[name_index]
+      if(n == "none"){NULL} else {n}
+    } else {NULL}
+    # print(unit)
     
     var <- quo(name)
     map_data <- csv_geo %>% select(GEOID20, UQ(var), geometry)
@@ -110,23 +117,17 @@ ea_prep_func <- function(eafile) {
     legend_labels <- as.list(ea_export$dataColumns$labels[[i]])
     
     sel_range <- c(min(legend_breaks), max(legend_breaks))
-    # print(str_detect(event, "groundwater"))
     
     col_pal <- if(str_detect(event, "groundwater")){
       rev(brewer.pal(length(legend_labels), "YlGnBu"))
     } else if (str_detect(event, "Extreme")){
-      brewer.pal(length(legend_labels), "BrBG")
-    } else {brewer.pal(length(legend_labels), "YlGnBu")}
-    
-    # reverse_pal <- TRUE
-    
-    # pal <- colorBin(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000"),
-    #                 sel_range,
-    #                 bins = legend_breaks,
-    #                 right = TRUE,
-    #                 # reverse = TRUE,
-    #                 na.color = "#808080",
-    #                 pretty = FALSE )
+      carto_pal(length(legend_labels), "Earth")
+      # brewer.pal(length(legend_labels), "BrBG")
+    } else if (str_detect(event, "Roadway")) {
+      c('#efedf5', '#d8d4e8', '#c3bada', '#afa1cd', '#9c88c0', '#896fb2', '#7757a5', '#653e98', '#53248a', '#3f007d')
+      # c('#ffffcc', '#dbf0c4', '#bae0c0', '#9bcfbe', '#80bdbc', '#68abba', '#5398b7', '#4185b3', '#3171ae', '#225ea8')
+      # carto_pal(length(legend_labels), "Teal")
+    } else {brewer.pal(length(legend_labels), "Purples")}
     
     csv_pop <- map_data %>% 
       left_join(pop_dat, by = join_by(GEOID20 == GEOID20)) %>% 
@@ -151,9 +152,10 @@ ea_prep_func <- function(eafile) {
     
     pop_data <- csv_pop %>% 
       group_by(!!group_vars[[1]], event) %>%
-      summarize(across(c(total:jobs_wac_low), sum)) %>% 
+      summarize(across(c(total:jobs_rac_low), sum)) %>% 
       mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
              per_occupied_housing = (occupied_housing/total_housing)*100,
+             across(c(jobs_rac_low), ~ (.x/jobs_rac)*100, .names = "per_{.col}"), 
              across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}")) %>% 
       ungroup() %>% 
       mutate(per_total = (total/sum(total))*100,
@@ -165,7 +167,7 @@ ea_prep_func <- function(eafile) {
 
     ls_name <- as.character(title)
     ls_name
-    ls <- list(name=name, map_data=map_data, title=title, field_description=field_description, 
+    ls <- list(name=name, map_data=map_data, title=title, field_description=field_description, unit=unit,
                legend_breaks=legend_breaks, legend_labels=legend_labels, sel_range=sel_range, 
                col_pal=col_pal, pop_data=pop_data)
     # print(ls)
@@ -268,11 +270,11 @@ swi <- list("2024" = swi_2024, "2030"=swi_2030,
 # Compile App data ----
 # app_dat <- list(groundwater_2030=groundwater_2030, groundwater_2040=groundwater_2040)
 app_dat <- list(`Depth to Groundwater`=groundwater, `Extreme Wetness/Dryness`=extremes, 
-                `Roadway Flooding`=roadflood,
                 `Seawater Intrusion`=swi, 
                 `Storm Surge: Hurricane Dorian`=dorian, `Storm Surge: Hurricane Isabel`=isabel,
                 `Storm Surge: Hurricane Joaquin`=joaquin, `Storm Surge: King Tide`=kingtide,
                 `Storm Surge: Nor'Ida Storm`=norida, 
+                `Roadway Flooding`=roadflood,
                 `Case Study Areas: Average Water Level Depth`=avg_wld,
                 `Case Study Areas: Septic System Risk Assessment`=septic
                 )
