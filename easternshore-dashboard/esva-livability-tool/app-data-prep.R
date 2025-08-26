@@ -10,6 +10,7 @@ library(RColorBrewer)
 library(rcartocolor)
 library(bslib)
 library(qs)
+library(rmapshaper)
 
 # Set WD
 setwd(here("esva-livability-tool"))
@@ -44,6 +45,9 @@ get_boxid <- function(path) {
 block_geo <- st_read("data/blocks/esva_2020block_clipped.geojson")
 block_geo <- st_transform(block_geo, 4326) %>% 
   select(GEOID20)
+
+block_geo <- ms_simplify(block_geo) %>% 
+  sf::st_collection_extract()
 
 # Population data ---
 pop_dat <- box_read_csv("1883093293417") %>% 

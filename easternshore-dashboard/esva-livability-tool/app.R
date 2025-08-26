@@ -11,12 +11,10 @@ library(qs)
 library(highcharter)
 library(rcartocolor)
 
-
-
 # Read in data
 app_dat <- qs::qread("app_data_test.qs")
-
 input_choices = names(app_dat)
+esva_bbox <- c(-76.06697 , 37.04853, -75.16060,  38.04154)
 
 ui <- page_sidebar(
   title = "Eastern Shore of Virginia Livability Tool",
@@ -31,17 +29,16 @@ ui <- page_sidebar(
     selectInput(
       'scenario_yr',
       label = 'Year',
-      choices = NULL
+      choices = character(0)
       ),
     selectInput(
       'scenario_m',
       label = 'Measure',
-      choices = NULL
+      choices = character(0)
       )
     ),
   layout_columns(
     col_widths = 12,
-    # row_heights = c(3,1,1,1,1),
     layout_columns(
       col_widths = c(8,4),
       leafletOutput('map', width="100%", height = "650px"),
@@ -76,12 +73,9 @@ ui <- page_sidebar(
           card_body(class= "p-1 m-0",
                     htmlOutput("meta_info"))
         )
-        # htmlOutput("scenario_meta")
       )
     ),
-    # card(card_header("Population Impacts"),
-         # max_height = "1300px",
-         card(class= "bg-light fs-5 shadow-none",
+    card(class= "bg-light fs-5 shadow-none",
               "What percent of the ESVA's housing or people are in areas estimated to experience each outcome?"),
          layout_column_wrap(
            highchartOutput('houseplot'),
@@ -94,7 +88,7 @@ ui <- page_sidebar(
            "Values above the line mean a group is overrepresented for the outcome relative to their presence in the overall population. Values below the line mean a group is underrepresented for the outcome relative to their presence in the overall population."
            ),
          ),
-         layout_column_wrap(
+    layout_column_wrap(
            highchartOutput('blackplot'),
            highchartOutput('whiteplot'),
            highchartOutput('hispplot'),
@@ -102,14 +96,20 @@ ui <- page_sidebar(
            highchartOutput('wagehomeplot'),
            highchartOutput('wageplot'),
            width = 1/3)
-         # ) # end card
     )
   
 ) # end page_navbar
 
 server <- function(input, output, session){
   
+  listen_scen <- reactive(input$scenario_ww)
+  
+  listen_yr <- reactive(input$scenario_yr)
+  
+  listen_m <- reactive(input$scenario_m)
+  
   scenario_ww <- reactive({
+    req(input$scenario_ww)
     for (i in seq_along(names(app_dat))) {
       if (input$scenario_ww == names(app_dat)[i]) {
         d <- app_dat[[i]]
@@ -118,15 +118,15 @@ server <- function(input, output, session){
     d
   })
   
-  observeEvent(scenario_ww(), {
+  observeEvent(list(scenario_ww(), listen_scen()), {
     choices <- names(scenario_ww())
     freezeReactiveValue(input, "scenario_yr")
     freezeReactiveValue(input, "scenario_m")
-    updateSelectInput(inputId = "scenario_yr", choices = choices)
+    updateSelectInput(session, inputId = "scenario_yr", choices = choices)
   })
   
   scenario_yr <- reactive({
-    req(input$scenario_yr)
+    req(scenario_ww(), input$scenario_yr)
     for (i in seq_along(scenario_ww())) {
       if (input$scenario_yr == names(scenario_ww())[i]) {
         d <- scenario_ww()[[i]][["measures"]]
@@ -135,23 +135,25 @@ server <- function(input, output, session){
     d
   })
   
-  observeEvent(scenario_yr(), {
+  observeEvent(list(scenario_yr(), listen_scen(), listen_yr()), {
     choices <- names(scenario_yr())
     freezeReactiveValue(input, "scenario_m")
-    updateSelectInput(inputId = "scenario_m", choices = choices)
+    updateSelectInput(session, inputId = "scenario_m", choices = choices)
   })
-  
+
  dw <- reactive({
+   req(input$scenario_yr, scenario_ww())
     yr <- as.character(input$scenario_yr)
     d <- scenario_ww()[[`yr`]]
+  })
 
-  }) 
- 
  dm <- reactive({
-   ms <- as.character(input$scenario_m)
-   d <- dw()[["measures"]][[`ms`]]
+  req(input$scenario_m, dw())
+  ms <- as.character(input$scenario_m)
+  d <- dw()[["measures"]][[`ms`]]
 
  })
+
 
  event_name <- reactive({
    d <- dw()
@@ -162,7 +164,7 @@ server <- function(input, output, session){
    d <- dw()
    d <- d$descriptionTitle
  })
- 
+
  output$meta_measure <- renderUI({event_title()})
  
  event_meas_descript <- reactive({
@@ -176,41 +178,24 @@ server <- function(input, output, session){
    d <- dw()
    d <- d$year
  })
- 
+
  output$meta_year <- renderUI({event_year()})
 
  event_description <- reactive({
    d <- dw()
    d <- d$description
  })
- 
+
  output$meta_info <- renderUI({event_description()})
-
- # output$scenario_meta <- renderUI({
- #   HTML(paste0('<span><small>Selected Measure:</small><br/><b>', event_title(), '</b></span><br/>',
- #               '<span><small>Selected Measure Description:</small><br/>', event_meas_descript(), '</span><br/>',
- #               '<span><small>Selected Year:</small><br/>', event_year(), '</span><br/>',
- #               '<span><small>More Information:</small><br/>', event_description(), '</span>'
- #   )
- #   )
- # })
-
- 
- listen_scen <- reactive(input$scenario_ww)
- 
- listen_yr <- reactive(input$scenario_yr)
- 
- listen_m <- reactive(input$scenario_m)
 
   # Map Functions -------------------------------------------------------
   ## Leaflet base map function ----
-  
- esva_bbox <- c(-76.06697 , 37.04853, -75.16060,  38.04154)
 
   renderLeafletFunction <- function(map) {
     renderLeaflet({
       leaflet() %>%
-        addProviderTiles('CartoDB.Positron') %>%
+        addProviderTiles('CartoDB.Positron',
+                         options = providerTileOptions(minZoom = 8, maxZoom = 18)) %>%
         fitBounds(esva_bbox[1], esva_bbox[2], esva_bbox[3], esva_bbox[4]) %>%
         addResetMapButton()
     })
@@ -254,12 +239,11 @@ server <- function(input, output, session){
 
 
   # Build Map -------------------------------------------------------
-
+  
   # render leaflet map
   output$map <- renderLeafletFunction()
 
   observeEvent(list(listen_scen(), listen_yr(), listen_m()), {
-
     p <- dm()
     
     name <- as.character(p$name)
@@ -304,6 +288,7 @@ server <- function(input, output, session){
       )
   }
 
+  
 # chart function ----
   chart_func <- function(chart_dat, x, y, col, title, chart_tot, chart_title) {
     x <- enexpr(x)
@@ -330,16 +315,9 @@ server <- function(input, output, session){
                    dashStyle = "LongDash"
                  )
                )) %>%
-      # hc_colorAxis(stops = 5) %>%
-      # hc_colors(c("#FEF0D9", "#FDD49E", "#FDBB84", "#FC8D59", "#E34A33", "#B30000")) %>%
-      # hc_colors(chart_pal) %>% 
       hc_plotOptions(series = list(dataLabels = list(format = '{y}%', enabled = TRUE),
                                    colorByPoint = TRUE,
                                    states = list(hover = list(enabled = FALSE)))) %>%
-  #     hc_tooltip(formatter = JS("function(){
-  # return '<b>' + this.key + '</b></br>Percent Impacted: <b>' + this.y + '%' + '</b>'
-  # }")) %>%
-      
       hc_title(text = chart_title,
                align = 'left') %>%
       hc_add_theme(hc_theme_smpl())
@@ -353,9 +331,7 @@ server <- function(input, output, session){
     td <- dm()
     
     cat_labels <- td$legend_labels
-
-    # pal <- carto_pal(length(cat_labels), "Mint")
-    # pal <- rev(brewer.pal(length(cat_labels), "YlGnBu"))
+    
     pal <- td$col_pal
     
     chart_dat <- td$pop_data
