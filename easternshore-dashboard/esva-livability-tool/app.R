@@ -86,7 +86,7 @@ ui <- page_sidebar(
          card_body(
            class = "fs-6",
            "Values above the dashed line mean a group is overrepresented for the outcome relative to their presence in the overall population. Values below the dashed line mean a group is underrepresented for the outcome relative to their presence in the overall population."
-           ),
+           )
          ),
     layout_column_wrap(
            highchartOutput('blackplot'),
@@ -95,7 +95,12 @@ ui <- page_sidebar(
            highchartOutput('ageplot'),
            highchartOutput('wagehomeplot'),
            highchartOutput('wageplot'),
-           width = 1/3)
+           width = 1/3),
+    card(class = "shadow-none small",
+         "Housing and Population Data Sources: ",
+         "Housing and Demographics: U.S. Census Bureau, Demographic and Housing Characteristics, Decennial Census, 2020.",
+         "Low-Wage Jobs: U.S. Census Bureau, LEHD Origin-Destination Employment Statistics (LODES), 2022."
+         )
     )
   
 ) # end page_navbar
@@ -447,7 +452,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_pop_under18, color_bin, td$title, chart_tot, 'Residents Under 18 yrs') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Residents under 18 yrs old make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Residents under 18 yrs old make up <b>' + this.y + '%' + '</b> of the population in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
   }"))
     
   })
@@ -476,7 +481,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_jobs_rac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Location of Residence') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working<br/>population with homes in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working population with homes in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
   }"))
     
     # title: Low Wage Workers by location of residence (by location of workplace) 
@@ -507,7 +512,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_jobs_wac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Location of Workplace') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the<br/>working population with workplaces in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working population with workplaces in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
   }"))
     
   })
