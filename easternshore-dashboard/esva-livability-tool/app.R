@@ -76,16 +76,16 @@ ui <- page_sidebar(
       )
     ),
     card(class= "bg-light fs-5 shadow-none",
-              "What percent of the ESVA's housing or people are in areas estimated to experience each outcome?"),
+              "What percent of the housing or people on the Eastern Shore of VA are in areas estimated to experience each outcome?"),
          layout_column_wrap(
            highchartOutput('houseplot'),
            highchartOutput('totalplot'),
            width = 1/2),
     card(class= "bg-light fs-5 shadow-none",
-         "What percent of each group are in areas estimated to experience each outcome relative to the percent each group makes up in the ESVA's population?",
+         "What percent of each group are in areas estimated to experience each outcome? Are these groups more or less impacted relative to their presence in the overall population on the Eastern Shore of VA?",
          card_body(
            class = "fs-6",
-           "Values above the line mean a group is overrepresented for the outcome relative to their presence in the overall population. Values below the line mean a group is underrepresented for the outcome relative to their presence in the overall population."
+           "Values above the dashed line mean a group is overrepresented for the outcome relative to their presence in the overall population. Values below the dashed line mean a group is underrepresented for the outcome relative to their presence in the overall population."
            ),
          ),
     layout_column_wrap(
@@ -474,11 +474,13 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_jobs_wac_low)
     
-    chart_func(chart_dat, bin, per_jobs_rac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Residence') %>% 
+    chart_func(chart_dat, bin, per_jobs_rac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Location of Residence') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Residents in Low Wage jobs by residence make up <br/><b>' + this.y + '%' + '</b> of the population in areas experiencing<br/>the outcome: <b>' + this.key + '</b><br/>'
+  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working<br/>population with homes in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
   }"))
     
+    # title: Low Wage Workers by location of residence (by location of workplace) 
+    # Workers in low wage jobs by location of their residence ... make up x% of the working population in the outcome
   })
   
   # Low wage workers plot ----
@@ -503,9 +505,9 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_jobs_wac_low)
     
-    chart_func(chart_dat, bin, per_jobs_wac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Workplace') %>% 
+    chart_func(chart_dat, bin, per_jobs_wac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Location of Workplace') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Residents in Low Wage jobs by workplace make up <br/><b>' + this.y + '%' + '</b> of the population in areas experiencing<br/>the outcome: <b>' + this.key + '</b><br/>'
+  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the<br/>working population with workplaces in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
   }"))
     
   })
