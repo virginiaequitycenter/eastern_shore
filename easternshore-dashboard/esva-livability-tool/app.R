@@ -76,7 +76,7 @@ ui <- page_sidebar(
       )
     ),
     card(class= "bg-light fs-5 shadow-none",
-              "What percent of the housing or people on the Eastern Shore of VA are in areas estimated to experience each outcome?"),
+              "What percent of households or people on the Eastern Shore of VA are in areas estimated to experience each outcome?"),
          layout_column_wrap(
            highchartOutput('houseplot'),
            highchartOutput('totalplot'),
@@ -97,9 +97,8 @@ ui <- page_sidebar(
            highchartOutput('wageplot'),
            width = 1/3),
     card(class = "shadow-none small",
-         "Housing and Population Data Sources: ",
-         "Housing and Demographics: U.S. Census Bureau, Demographic and Housing Characteristics, Decennial Census, 2020.",
-         "Low-Wage Jobs: U.S. Census Bureau, LEHD Origin-Destination Employment Statistics (LODES), 2022."
+         "Housing and Demographics Data Source: U.S. Census Bureau, Demographic and Housing Characteristics, Decennial Census, 2020.",
+         "Low-Wage Jobs Data Source: U.S. Census Bureau, LEHD Origin-Destination Employment Statistics (LODES), 2022."
          )
     )
   
@@ -210,7 +209,7 @@ server <- function(input, output, session){
   mapProxyFunction <- function(mapData, mapId,
                                var, var_title,
                                legend_labels,
-                               pal, sel_range, unit){
+                               pal, sel_range, unit, total_housing){
 
     # map proxy
     proxy <- leafletProxy(mapId, data = mapData)
@@ -226,7 +225,7 @@ server <- function(input, output, session){
                     smoothFactor = 0.2,
                     fillOpacity = 0.6,
                     fillColor = ~pal(var),
-                    label = lapply(as.list(paste0(round(var,2), " ", unit)), HTML),
+                    label = lapply(as.list(paste0(var_title, ": <b>", round(var,2), " ", unit, "</b><br/>Number of Households: ", total_housing)), HTML),
                     group = var_title) %>%
         addLegend(position = 'topright',
                   pal = pal,
@@ -263,7 +262,7 @@ server <- function(input, output, session){
                     pretty = FALSE )
 
     
-    mapProxyFunction(p$map_data, "map", p$map_data[[`name`]], p$title, p$legend_labels, pal, p$sel_range, p$unit)
+    mapProxyFunction(p$map_data, "map", p$map_data[[`name`]], p$title, p$legend_labels, pal, p$sel_range, p$unit, p$map_data$total_housing)
       
     })
 
@@ -345,11 +344,13 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_hisp = round(per_hisp,0),
+             num_label = prettyNum(round(hisp, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
              )
-
+    
     chart_tot <- chart_dat %>% 
       filter(event == "none") %>% 
       pull(per_hisp)
@@ -358,11 +359,10 @@ server <- function(input, output, session){
     cat_num <- chart_dat %>% 
       filter(event != "none") 
     
-    
-    
     chart_func(chart_dat, bin, per_hisp, color_bin, td$title, chart_tot, 'Hispanic Residents') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Hispanic Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Hispanic Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Number of Hispanic Residents: ' + this.point.num_label + '</b><br/>'
   }"))
     
   })
@@ -381,6 +381,8 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_black = round(per_black,0),
+             num_label = prettyNum(round(black, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
@@ -392,7 +394,8 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_black, color_bin, td$title, chart_tot, 'Black Residents') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Black Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Black Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Number of Black Residents: ' + this.point.num_label + '</b><br/>'
   }"))
     
   })
@@ -411,6 +414,8 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_white = round(per_white,0),
+             num_label = prettyNum(round(white, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
@@ -422,7 +427,8 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_white, color_bin, td$title, chart_tot, 'White Residents') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'White Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'White Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Number of White Residents: ' + this.point.num_label + '</b><br/>'
   }"))
     
   })
@@ -441,6 +447,8 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_pop_under18 = round(per_pop_under18,0),
+             num_label = prettyNum(round(pop_under18, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
@@ -452,7 +460,8 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_pop_under18, color_bin, td$title, chart_tot, 'Residents Under 18 yrs') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Residents under 18 yrs old make up <b>' + this.y + '%' + '</b> of the population in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Residents under 18 yrs old make up <b>' + this.y + '%' + '</b> of the population in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Number of Residents Under 18: ' + this.point.num_label + '</b><br/>'
   }"))
     
   })
@@ -471,21 +480,22 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_jobs_rac_low = round(per_jobs_rac_low,0),
+             num_label = prettyNum(round(jobs_rac_low, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index]))
     
     chart_tot <- chart_dat %>% 
       filter(event == "none") %>% 
-      pull(per_jobs_wac_low)
+      pull(per_jobs_rac_low)
     
     chart_func(chart_dat, bin, per_jobs_rac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Location of Residence') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working population with homes in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working population with homes in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Number of Workers by Residence: ' + this.point.num_label + '</b><br/>'
   }"))
     
-    # title: Low Wage Workers by location of residence (by location of workplace) 
-    # Workers in low wage jobs by location of their residence ... make up x% of the working population in the outcome
   })
   
   # Low wage workers plot ----
@@ -502,6 +512,8 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_jobs_wac_low = round(per_jobs_wac_low,0),
+             num_label = prettyNum(round(jobs_wac_low, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index]))
@@ -512,7 +524,8 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_jobs_wac_low, color_bin, td$title, chart_tot, 'Low Wage Workers by Location of Workplace') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working population with workplaces in areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return 'Workers in low wage jobs make up <b>' + this.y + '%' + '</b> of the working population with workplaces in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Number of Workers by Workplace: ' + this.point.num_label + '</b><br/>'
   }"))
     
   })
@@ -531,6 +544,8 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_total = round(per_total,0),
+             num_label = prettyNum(round(total, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
@@ -542,12 +557,13 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_total, color_bin, td$title, chart_tot, 'Total Population') %>% 
       hc_tooltip(formatter = JS("function(){
-  return '<b>' + this.y + '%' + '</b> of the population of the ESVA live in<br/>areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return '<b>' + this.y + '%' + '</b> of the population of the ESVA live in<br/>areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Population: ' + this.point.num_label + '</b><br/>'
   }"))
     
   })
   
-  # Total housing plot ----
+  # Total households plot ----
   output$houseplot <- renderHighchart({
     
     td <- dm()
@@ -561,6 +577,8 @@ server <- function(input, output, session){
       mutate(bin = case_when(is.na(bin) ~ "N/A",
                              .default = bin),
              per_housing = round(per_housing,0),
+             num_label = prettyNum(round(total_housing, -1), big.mark = ","),
+             outcome = td$title,
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
@@ -570,9 +588,10 @@ server <- function(input, output, session){
       filter(event == "none") %>% 
       pull(per_housing)
     
-    chart_func(chart_dat, bin, per_housing, color_bin, td$title, chart_tot, 'Total Housing') %>% 
+    chart_func(chart_dat, bin, per_housing, color_bin, td$title, chart_tot, 'Total Households') %>% 
       hc_tooltip(formatter = JS("function(){
-  return '<b>' + this.y + '%' + '</b> of the housing stock on the ESVA are in<br/>areas experiencing the outcome: <b>' + this.key + '</b><br/>'
+  return '<b>' + this.y + '%' + '</b> of households on the ESVA are in<br/>areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  '<br/><b>' + 'Estimated Number of Households: ' + this.point.num_label + '</b><br/>'
   }"))
     
   })

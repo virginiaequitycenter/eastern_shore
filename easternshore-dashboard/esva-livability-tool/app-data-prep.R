@@ -19,19 +19,19 @@ setwd(here("esva-livability-tool"))
 readRenviron("~/.Renviron")
 box_auth(client_id = Sys.getenv('BOX_CLIENT_ID'), client_secret = Sys.getenv('BOX_CLIENT_SECRET'))
 
-# # Get Box Data
-# dir_id <- "305971996036" # EA_Export
-# box_setwd(dir_id)
-# 
-# # box_ls()
-# 
-# box_fetch(
-#   dir_id = box_getwd(),
-#   local_dir = "app_data/app_data_updated",
-#   recursive = TRUE,
-#   overwrite = TRUE,
-#   delete = TRUE
-# )
+# Get Box Data
+dir_id <- "305971996036" # EA_Export
+box_setwd(dir_id)
+
+# box_ls()
+
+box_fetch(
+  dir_id = box_getwd(),
+  local_dir = "app_data/app_data_updated",
+  recursive = TRUE,
+  overwrite = TRUE,
+  delete = TRUE
+)
 
 # Data prep ----
 
@@ -98,6 +98,7 @@ ea_prep_func <- function(eafile) {
   descriptionTitle <- ea_export$descriptionTitle
   event <- ea_export$event
   description <- ea_export$descriptionText
+  dataCategories <- ea_export$dataCategories
   
  measures <- list() 
   
@@ -111,6 +112,7 @@ ea_prep_func <- function(eafile) {
     unit <- if("unit" %in% names(json$schema$fields)){
       n <- json$schema$fields$unit[name_index]
       if(n == "none"){NULL} else {n}
+      if(n == "-"){NULL}else {n}
     } else {NULL}
     # print(unit)
     
@@ -127,10 +129,10 @@ ea_prep_func <- function(eafile) {
     } else if (str_detect(event, "Extreme")){
       carto_pal(length(legend_labels), "Earth")
       # brewer.pal(length(legend_labels), "BrBG")
-    } else if (str_detect(event, "Roadway")) {
-      c('#efedf5', '#d8d4e8', '#c3bada', '#afa1cd', '#9c88c0', '#896fb2', '#7757a5', '#653e98', '#53248a', '#3f007d')
-      # c('#ffffcc', '#dbf0c4', '#bae0c0', '#9bcfbe', '#80bdbc', '#68abba', '#5398b7', '#4185b3', '#3171ae', '#225ea8')
-      # carto_pal(length(legend_labels), "Teal")
+    # } else if (str_detect(dataCategories, "inlandflooding")) {
+    #   c('#efedf5', '#d8d4e8', '#c3bada', '#afa1cd', '#9c88c0', '#896fb2', '#7757a5', '#653e98', '#53248a', '#3f007d')
+    #   # c('#ffffcc', '#dbf0c4', '#bae0c0', '#9bcfbe', '#80bdbc', '#68abba', '#5398b7', '#4185b3', '#3171ae', '#225ea8')
+    #   # carto_pal(length(legend_labels), "Teal")
     } else {brewer.pal(length(legend_labels), "Purples")}
     
     csv_pop <- map_data %>% 
@@ -166,9 +168,14 @@ ea_prep_func <- function(eafile) {
              per_housing = (total_housing/sum(total_housing))*100) %>% 
       rename(bin = group_vars[[1]]) %>%
       bind_rows(pop_total) %>% 
-      mutate(bin = factor(bin, levels = c(legend_labels, "ESVA Total"))) %>% 
-      select(bin, event, starts_with("per_"))
+      mutate(bin = factor(bin, levels = c(legend_labels, "ESVA Total"))) 
+      # select(bin, event, starts_with("per_"))
 
+    # add total housing to map_data
+    map_data <- map_data %>% 
+      left_join(pop_dat, by = join_by(GEOID20 == GEOID20)) %>% 
+      select(GEOID20, UQ(var), total_housing, geometry)
+    
     ls_name <- as.character(title)
     ls_name
     ls <- list(name=name, map_data=map_data, title=title, field_description=field_description, unit=unit,
@@ -203,34 +210,52 @@ groundwater <- list("2024"=groundwater_2024, "2030"=groundwater_2030,
                     "2040"=groundwater_2040, "2050"=groundwater_2050, 
                     "2060"=groundwater_2060, "2080"=groundwater_2080)
 
+save(groundwater, file = "saved_rdata/groundwater.Rda")
+
 # Storm Surge: Hurricane Dorian
 dr_2019 <- ea_prep_func(list.files("app_data/app_data_updated")[7])
 dorian <- list("2019"=dr_2019)
 
+save(dorian, file = "saved_rdata/dorian.Rda")
+
 # Storm Surge Isabel
 ib_2003 <- ea_prep_func(list.files("app_data/app_data_updated")[8])
-ib_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[10])
-ib_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[11])
-ib_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[12])
-ib_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[13])
-ib_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[14])
-ib_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[15])
+ib_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[9])
+ib_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[10])
+ib_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[11])
+ib_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[12])
+ib_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[13])
+ib_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[14])
 
 isabel <- list("2003"=ib_2003, "2025" = ib_2025, "2030"=ib_2030, 
                "2040"=ib_2040, "2050"=ib_2050, 
                "2060"=ib_2060, "2080"=ib_2080)
 
+save(isabel, file = "saved_rdata/isabel.Rda")
+
 # Storm Surge Hurricane Joaquin
-jq_2015 <- ea_prep_func(list.files("app_data/app_data_updated")[16])
+jq_2015 <- ea_prep_func(list.files("app_data/app_data_updated")[15])
 joaquin <- list("2015"=jq_2015)
 
+save(joaquin, file = "saved_rdata/joaquin.Rda")
+
 # Storm Surge King Tide
-kt_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[17])
+kt_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[16])
 kingtide <- list("2009"=kt_2009)
 
+save(kingtide, file = "saved_rdata/kingtide.Rda")
+
 # Storm Surge Nor'Ida Storm
-ni_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[18])
+ni_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[17])
 norida <- list("2009"=ni_2009)
+
+save(norida, file = "saved_rdata/norida.Rda")
+
+# Composite Storm Surge Risk
+composite_ss <- ea_prep_func(list.files("app_data/app_data_updated")[18])
+composite_risk <- list("Composite"=composite_ss)
+
+save(composite_risk, file = "saved_rdata/composite_risk.Rda")
 
 # Extreme Wetness/Dryness
 ewd_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[19])
@@ -244,41 +269,75 @@ extremes <- list("2025" = ewd_2025, "2030"=ewd_2030,
                  "2040"=ewd_2040, "2050"=ewd_2050, 
                  "2060"=ewd_2060, "2080"=ewd_2080)
 
-# Roadway flooding
-rdflood_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[32])
-rdflood_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[33])
-rdflood_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[34])
+save(extremes, file = "saved_rdata/extremes.Rda")
 
-roadflood <- list("2040"=rdflood_2040, "2060"=rdflood_2060, "2080"=rdflood_2080)
+# Inland flooding
+rdflood_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[25])
+rdflood_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[26])
+rdflood_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[27])
+rdflood_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[28])
+landuse_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[29])
+
+roadflood <- list("Land Use/Land Cover"=landuse_2025, "2020"=rdflood_2020, "2040"=rdflood_2040, "2060"=rdflood_2060, "2080"=rdflood_2080)
+
+save(roadflood, file = "saved_rdata/roadflood.Rda")
+
+# # Land Use/Land Cover - added above to inland flooding
+# landuse_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[29])
+# landuse <- list("2025"=landuse_2025)
+# 
+# save(landuse, file = "saved_rdata/landuse.Rda")
 
 # Water Level Depth
-wld_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[35])
+wld_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[30])
 avg_wld <- list("2020-2023"=wld_2020)
+save(avg_wld, file = "saved_rdata/avg_wld.Rda")
+
 # Septic System Risk Assessment
-ssra_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[36])
+ssra_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[31])
 septic <- list("2020-2023"=ssra_2020)
+save(septic, file = "saved_rdata/septic.Rda")
+
 
 # Seawater intrusion
-swi_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[37])
-swi_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[38])
-swi_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[39])
-swi_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[40])
-swi_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[41])
-swi_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[42])
+swi_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[32])
+swi_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[33])
+swi_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[34])
+swi_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[35])
+swi_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[36])
+swi_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[37])
 
 swi <- list("2024" = swi_2024, "2030"=swi_2030, 
                     "2040"=swi_2040, "2050"=swi_2050, 
                     "2060"=swi_2060, "2080"=swi_2080)
 
+save(swi, file = "saved_rdata/swi.Rda")
 
 # Compile App data ----
-# app_dat <- list(groundwater_2030=groundwater_2030, groundwater_2040=groundwater_2040)
+# Load previous data
+# load("saved_rdata/groundwater.Rda")
+# load("saved_rdata/avg_wld.Rda")
+# load("saved_rdata/composite_risk.Rda")
+# load("saved_rdata/dorian.Rda")
+# load("saved_rdata/extremes.Rda")
+# load("saved_rdata/isabel.Rda")
+# load("saved_rdata/joaquin.Rda")
+# load("saved_rdata/kingtide.Rda")
+# # load("saved_rdata/landuse.Rda")
+# load("saved_rdata/norida.Rda")
+# load("saved_rdata/roadflood.Rda")
+# load("saved_rdata/septic.Rda")
+# load("saved_rdata/swi.Rda")
+
+
 app_dat <- list(`Depth to Groundwater`=groundwater, `Extreme Wetness/Dryness`=extremes, 
-                `Seawater Intrusion`=swi, 
+                `Inland Flooding`=roadflood,
+                # `Relative Land Use/Land Cover Amount`=landuse,
+                `Seawater Intrusion`=swi,
+                `Composite Storm Surge Risk`=composite_risk,
                 `Storm Surge: Hurricane Dorian`=dorian, `Storm Surge: Hurricane Isabel`=isabel,
                 `Storm Surge: Hurricane Joaquin`=joaquin, `Storm Surge: King Tide`=kingtide,
                 `Storm Surge: Nor'Ida Storm`=norida, 
-                `Roadway Flooding`=roadflood,
                 `Case Study Areas: Average Water Level Depth`=avg_wld,
                 `Case Study Areas: Septic System Risk Assessment`=septic
                 )
