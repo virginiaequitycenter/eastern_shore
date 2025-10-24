@@ -92,7 +92,7 @@ pop_under18 <- pop_race_ethn %>%
 # wac: va_wac_S000_JT01_2022.csv.gz
 
 ## rac ----
-url <- "https://lehd.ces.census.gov/data/lodes/LODES8/va/rac/va_rac_S000_JT01_2022.csv.gz"
+url1 <- "https://lehd.ces.census.gov/data/lodes/LODES8/va/rac/va_rac_S000_JT01_2022.csv.gz"
 download.file(url1, destfile = "lodes/rac_s000.csv.gz")
 
 rac_s000 <- read_csv(gzfile("lodes/rac_s000.csv.gz"))   
@@ -104,8 +104,8 @@ rac_s000 <- rac_s000 %>%
   select(GEOID = h_geocode, jobs_rac = C000, jobs_rac_low = CE01, jobs_rac_mid = CE02, jobs_rac_hi = CE03)
 
 ## wac ----
-url <- "https://lehd.ces.census.gov/data/lodes/LODES8/va/wac/va_wac_S000_JT01_2022.csv.gz"
-download.file(url1, destfile = "lodes/wac_s000.csv.gz")
+url2 <- "https://lehd.ces.census.gov/data/lodes/LODES8/va/wac/va_wac_S000_JT01_2022.csv.gz"
+download.file(url2, destfile = "lodes/wac_s000.csv.gz")
 
 wac_s000 <- read_csv(gzfile("lodes/wac_s000.csv.gz")) 
 
@@ -149,9 +149,15 @@ block_pop <- pop_race_ethn_wide %>%
 block_pop <- block_pop %>% replace(is.na(.), 0)
 
 
+# Amend discrepancies ----
+# between housing units == 0 and non-zero pop or jobs_rac/jobs_rac_low
+block_pop_correction <- block_pop %>% 
+  mutate(across(total:pop_under18, ~if_else(total_housing == 0, 0, .)),
+         across(jobs_rac:jobs_rac_hi, ~if_else(total_housing == 0, 0, .)))
+
 # Save ----
 write_csv(block_pop, "block_pop_data.csv")
-
+write_csv(block_pop_correction, "block_pop_data_updated.csv")
 
 # Join to cb shapefile and map ----
 sum(block_pop$GEOID %in% cb$GEOID20) # 2688
