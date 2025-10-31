@@ -1,0 +1,138 @@
+---
+title: "ESVA Population Impact - Storm Surge Risk"
+output: html_document
+date: 2025-10-31
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r prep}
+library(sf)
+library(tidyverse)
+library(patchwork)
+library(leaflet)
+
+pal <- RColorBrewer::brewer.pal(5, "Purples")
+
+# Data
+# Created in poptest4.R
+load("ssr_pop_example.Rdata")
+
+# block shapefile
+blocks <- st_read("cb/esva_2020block_clipped.geojson",
+                  quiet = TRUE)
+blocks <- st_transform(blocks, 4326)
+
+## Combine data for maps
+ssr_df_map <- left_join(blocks, ssr_df, by = c("GEOID20"="GEOID20"))
+```
+
+## Map of Storm Surge Risk
+
+```{r map, fig.width=10}
+m <- ssr_df_map
+
+var1 <- m[[var1_name]]
+
+breaks <- legend_breaks
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+map <- leaflet(m) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  fitBounds(bbox[1], bbox[2], bbox[3], bbox[4]) %>% 
+  clearShapes() %>%
+  addPolygons(data = m,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(var1),
+              fillOpacity = 0.7,
+              group = var1_title) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = ~gsub("\n", "<br>",
+                          stringr::str_wrap(descriptionTitle,
+                                            width = 20,
+                                            whitespace_only = FALSE)),
+            opacity = 0.7)
+
+map
+```
+
+## Population Impacts of Storm Surge Risk
+
+### Distribution of blocks, housing units, population
+
+```{r viz1, fig.height=3, fig.width=10}
+wrap_plots(bar_plots_tot, ncol = 3)
+```
+
+
+### Distribution by Racial & Ethnic Identity
+
+Racial identity categories with > 1,000 estimated residents 
+
+#### Composition
+
+Percent of residents in target population within each outcome range
+
+```{r viz2, fig.height=7, fig.width=10}
+wrap_plots(bar_plots[c(2,3,1,8)], ncol = 2)
+```
+
+#### Risk Ratio
+
+Ratio of risk for targeted group relative to all other residents
+
+```{r viz2b, fig.height=7, fig.width=10}
+wrap_plots(bar_plots_rr[c(2,3,1,8)], ncol = 2, guides = "collect")
+```
+
+
+### Distribution by Age
+
+#### Composition
+
+Percent of residents in target population within each outcome range
+
+```{r viz3, fig.height=3, fig.width=10}
+wrap_plots(bar_plots[c(10,9)], ncol = 2)
+```
+
+#### Risk Ratio
+
+Ratio of risk for targeted group relative to all other residents
+
+```{r viz3b, fig.height=3, fig.width=10}
+wrap_plots(bar_plots_rr[c(10,9)], ncol = 2, guides = "collect")
+```
+
+### Distribution among Low-Wage Workers
+
+By Place of Residence, By Place of Work
+
+* Low-Wage: Earning $15,000/year or less
+
+#### Composition 
+
+Percent of residents in target population within each outcome range
+
+```{r viz4, fig.height=3, fig.width=10}
+wrap_plots(bar_plots[c(12,15)], ncol = 2)
+```
+
+#### Risk Ratio
+
+Ratio of risk for targeted group relative to all other residents
+
+```{r viz4b, fig.height=3, fig.width=10}
+wrap_plots(bar_plots_rr[c(11,14)], ncol = 2, guides = "collect")
+```
