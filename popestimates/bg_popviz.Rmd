@@ -1,0 +1,546 @@
+---
+title: "Block Group Population Attributes"
+output: html_document
+date: "2025-10-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 10)
+```
+
+```{r data}
+library(tidyverse)
+library(sf)
+library(leaflet)
+
+bg <- readRDS("blkgrp_data.RDS") # created in block_group_attributes.R
+bg_geo <- read_sf("../geography/cbg/esva_2020blkgrp_clipped.geojson")
+bg_geo <- st_transform(bg_geo, crs = 4326)
+
+bg_full <- left_join(bg_geo, bg, by = "GEOID")
+```
+
+## Population attributes by block group
+
+Potential population attributes to provide additional context
+
+### Population measures {.tabset}
+
+  - Population count: Estimated number of residents
+  - Percent White: Percent of residents who identify as white
+  - Percent Black: Percent of residents who identify as Black or African-American
+  - Percent Hispanic: Percent of residents who identify as Hispanic or Latino
+  - Percent under 18: Percent of residents under age 18
+  - Percent 65 and over: Percent of residents aged 65 or over
+  - Percent below poverty: Percent of residents living in households below the federal poverty threshold
+  
+#### Population Count
+
+```{r pmap1}
+# Total pop
+breaks <- c(0,1,500,1000,2000,2500)
+legend_labels <- c("None", "500 or less", "501 to 1000", "1001 to 2000", "2001 or more")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+pop_total <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(pop_totalE),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", bg_full$pop_totalE)) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Total Population",
+            opacity = 0.7)
+
+pop_total
+```
+
+#### Percent White
+
+```{r pmap2}
+# White
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+pop_white <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(pop_per_white),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$pop_per_white, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent White",
+            opacity = 0.7)
+
+pop_white
+```
+
+#### Percent Black
+
+```{r pmap3}
+# Black
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+pop_black <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(pop_per_black),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$pop_per_black, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent Black",
+            opacity = 0.7)
+
+pop_black
+```
+
+#### Percent Hispanic
+
+```{r pmap4}
+# Hispanic
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+pop_hisp <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(pop_per_hisp),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$pop_per_hisp, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent Hispanic",
+            opacity = 0.7)
+
+pop_hisp
+```
+
+#### Percent under 18
+
+```{r pmap5}
+# Under 18
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+pop_u18 <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(pop_per_under18),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$pop_per_under18, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent under 18",
+            opacity = 0.7)
+
+pop_u18
+```
+
+#### Percent 65 and over
+
+```{r pmap6}
+# 65 and over
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+pop_65o <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(pop_per_65over),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$pop_per_65over, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent 65 or over",
+            opacity = 0.7)
+
+pop_65o
+```
+
+#### Percent below poverty
+
+```{r pmap7}
+# poverty
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+pop_pov <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(pop_per_poverty),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$pop_per_poverty, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent below Poverty",
+            opacity = 0.7)
+
+pop_pov
+```
+
+### Household measures {.tabset}
+
+  - Housing count: Estimated number of housing units
+  - Percent vacant housing: Percent of vacant housing units
+  - Median income: Median income of households
+  - Percent renting: Percent of households who are renting their home
+  - Median rent: Median monthly rent paid by renting households
+  - Percent renters over \$2,000: Percent of renting households paying \$2,000 or more per month
+  - Percent owning: Percent of households who own their home
+  - Median house value: Median value of house among owning households
+  - Percent housing over \$500,000: Percent of owning households with house values of \$500,000 or more
+
+#### Housing count
+
+```{r hmap}
+# total housing
+breaks <- c(0,1,500,1000,2000,2500)
+legend_labels <- c("None", "500 or less", "501 to 1000", "1001 to 2000", "2001 or more")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_total <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_totalE),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_totalE, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Total Housing Units",
+            opacity = 0.7)
+
+hh_total
+```
+
+#### Percent vacant
+
+```{r hmap2}
+# Vacant
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_vacant <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_per_vacant),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_per_vacant, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent Vacant Housing",
+            opacity = 0.7)
+
+hh_vacant
+```
+
+#### Median Income
+
+```{r hmap3}
+# median income
+breaks <- c(0,30000,50000,75000,100000,125000)
+legend_labels <- c("$30K or less", "$30K to $50K", "$50K to $75K", "$75K to $100K", "$100K or more")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_vacant <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_medincE),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_medincE, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Median Household Income",
+            opacity = 0.7)
+
+hh_vacant
+```
+
+#### Percent renting
+
+```{r hmap4}
+# Vacant
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_rent <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_per_rent),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_per_rent, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent Renting",
+            opacity = 0.7)
+
+hh_rent
+```
+
+#### Median rent
+
+```{r hmap5}
+# median rent
+breaks <- c(0,600,800,1000,1200,2000)
+legend_labels <- c("$600 or less", "$600 to $800", "$800 to $1,000", "$1,000 to $1,200", "$1,200 or more")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_medrent <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_rented_medrentE),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_rented_medrentE, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Median Monthly Rent",
+            opacity = 0.7)
+
+hh_medrent
+```
+
+#### Percent renters over $2,000
+
+```{r hmap6}
+# Percent high rent
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_rent2k <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_per_rented_2k),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_per_rented_2k, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent Paying $2K or more",
+            opacity = 0.7)
+
+hh_rent2k
+```
+
+##### Percent owning
+
+```{r hmap7}
+# Vacant
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+bg_full <- bg_full %>% 
+  mutate(hh_per_own = 100-hh_per_rent)
+
+hh_own <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_per_own),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_per_own, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent Owning",
+            opacity = 0.7)
+
+hh_own
+```
+
+#### Median house value
+
+```{r hmap8}
+# median house vale
+breaks <- c(0,100000,150000,250000,350000,600000)
+legend_labels <- c("$100K or less", "$100K to $150K", "$150K to $250K", "$250K to $350K", "$350K or more")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_medvalue <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_owned_medvalueE),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_owned_medvalueE, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Median Home Value",
+            opacity = 0.7)
+
+hh_medvalue
+```
+
+#### Percent housing over $500,000
+
+```{r hmap9}
+# Percent high rent
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_ownn500k <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_per_owned_500k),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_per_owned_500k, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent Homes Valued $500K or more",
+            opacity = 0.7)
+
+hh_ownn500k
+```
