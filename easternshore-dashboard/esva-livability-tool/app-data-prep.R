@@ -11,6 +11,7 @@ library(rcartocolor)
 library(bslib)
 library(qs)
 library(rmapshaper)
+library(readxl)
 
 # Set WD
 setwd(here("esva-livability-tool"))
@@ -50,9 +51,15 @@ block_geo <- ms_simplify(block_geo) %>%
   sf::st_collection_extract()
 
 # Population data ---
-pop_dat <- box_read_csv("1883093293417") %>% 
+pop_dat <- box_read_csv("2026502973438") %>% 
   mutate(GEOID20 = as.character(GEOID)) %>% 
   select(GEOID20, total, hisp, black, white, pop_under18, total_housing, occupied_housing, jobs_wac, jobs_wac_low, jobs_rac, jobs_rac_low)
+
+# block_housing_data<- box_read_csv("2026502973438") %>%
+#   mutate(GEOID20 = as.character(GEOID),
+#          housing_units = total_housing) %>%
+#   select(GEOID20, housing_units)
+# write_csv(block_housing_data, "json_edits/block_housing_data.csv")
 
 ## Total population baselines ----
 pop_total <- pop_dat %>% 
@@ -81,8 +88,8 @@ ea_prep_func <- function(eafile) {
   
   # Join geometry
   csv_geo <- csv %>% 
-    mutate(GEOID20 = as.character(GEOID20)) %>% 
-    left_join(block_geo, by = join_by(GEOID20 == GEOID20)) %>% 
+    mutate(GEOID20 = as.character(GEOID20)) %>%
+    left_join(block_geo, by = join_by(GEOID20 == GEOID20)) %>%
     st_as_sf()
   
   # Join with population data
@@ -107,12 +114,12 @@ ea_prep_func <- function(eafile) {
     name_index <- match(name, json$schema$fields$name)
     title <- json$schema$fields$title[name_index]
     field_description <- json$schema$fields$description[name_index]
+    # field_description <- ea_export$dataColumns$`$description`[[i]]
 
     # print(names(json$schema$fields))
     unit <- if("unit" %in% names(json$schema$fields)){
       n <- json$schema$fields$unit[name_index]
-      if(n == "none"){NULL} else {n}
-      if(n == "-"){NULL}else {n}
+      if(n == "none" | n == "-"){NULL} else {n}
     } else {NULL}
     # print(unit)
     
@@ -128,12 +135,15 @@ ea_prep_func <- function(eafile) {
       rev(brewer.pal(length(legend_labels), "YlGnBu"))
     } else if (str_detect(event, "Extreme")){
       carto_pal(length(legend_labels), "Earth")
-      # brewer.pal(length(legend_labels), "BrBG")
-    # } else if (str_detect(dataCategories, "inlandflooding")) {
-    #   c('#efedf5', '#d8d4e8', '#c3bada', '#afa1cd', '#9c88c0', '#896fb2', '#7757a5', '#653e98', '#53248a', '#3f007d')
-    #   # c('#ffffcc', '#dbf0c4', '#bae0c0', '#9bcfbe', '#80bdbc', '#68abba', '#5398b7', '#4185b3', '#3171ae', '#225ea8')
-    #   # carto_pal(length(legend_labels), "Teal")
-    } else {brewer.pal(length(legend_labels), "Purples")}
+    } else if (str_detect(dataCategories, "inlandflooding")) {
+      # c('#fff7ec', '#ffdbb7', '#ffbd8c', '#fe9c68', '#f57d4d', '#e4613a', '#cf4729', '#b72e1a', '#9c170d', '#7f0000') #OrRd
+      c('#fff5f0', '#ffd6c6', '#ffb59c', '#ff9172', '#fb6a4a', '#e34e37', '#c83528', '#a91e1d', '#890b14', '#67000d') #Reds
+      # carto_pal(length(legend_labels), "SunsetDark")
+      # c('#efedf5', '#d8d4e8', '#c3bada', '#afa1cd', '#9c88c0', '#896fb2', '#7757a5', '#653e98', '#53248a', '#3f007d') #Purples
+    # } else if (str_detect(dataCategories, "housing")){
+    #   brewer.pal(length(legend_labels), "Purples")
+    } else {brewer.pal(length(legend_labels), "GnBu")}
+    
     
     csv_pop <- map_data %>% 
       left_join(pop_dat, by = join_by(GEOID20 == GEOID20)) %>% 
@@ -278,7 +288,8 @@ rdflood_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[27])
 rdflood_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[28])
 landuse_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[29])
 
-roadflood <- list("Land Use/Land Cover"=landuse_2025, "2020"=rdflood_2020, "2040"=rdflood_2040, "2060"=rdflood_2060, "2080"=rdflood_2080)
+roadflood <- list("2020"=rdflood_2020, "2040"=rdflood_2040, "2060"=rdflood_2060, "2080"=rdflood_2080, 
+                  "Current Land Cover"=landuse_2025)
 
 save(roadflood, file = "saved_rdata/roadflood.Rda")
 
@@ -313,6 +324,14 @@ swi <- list("2024" = swi_2024, "2030"=swi_2030,
 
 save(swi, file = "saved_rdata/swi.Rda")
 
+# Housing
+housing_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[38])
+
+housing <- list("U.S. Census, 2020" = housing_2020)
+
+save(housing, file = "saved_rdata/housing.Rda")
+
+
 # Compile App data ----
 # Load previous data
 # load("saved_rdata/groundwater.Rda")
@@ -328,20 +347,77 @@ save(swi, file = "saved_rdata/swi.Rda")
 # load("saved_rdata/roadflood.Rda")
 # load("saved_rdata/septic.Rda")
 # load("saved_rdata/swi.Rda")
+# load("saved_rdata/housing.RDA")
 
 
 app_dat <- list(`Depth to Groundwater`=groundwater, `Extreme Wetness/Dryness`=extremes, 
                 `Inland Flooding`=roadflood,
-                # `Relative Land Use/Land Cover Amount`=landuse,
                 `Seawater Intrusion`=swi,
                 `Composite Storm Surge Risk`=composite_risk,
                 `Storm Surge: Hurricane Dorian`=dorian, `Storm Surge: Hurricane Isabel`=isabel,
                 `Storm Surge: Hurricane Joaquin`=joaquin, `Storm Surge: King Tide`=kingtide,
                 `Storm Surge: Nor'Ida Storm`=norida, 
                 `Case Study Areas: Average Water Level Depth`=avg_wld,
-                `Case Study Areas: Septic System Risk Assessment`=septic
+                `Case Study Areas: Septic System Risk Assessment`=septic,
+                `Housing`=housing
                 )
 
   
   
 qs::qsave(app_dat, "app_data_test.qs")
+
+
+## Population data ----
+
+## Block Group names
+blkgrp_names <- read_excel("tract_names.xlsx", sheet = "blkgrp2020")
+blkgrp_names <- blkgrp_names %>% 
+  mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
+         tract = str_pad(tract, width = 6, side = "left", pad = "0"),
+         GEOID = paste0("51",localityfips,tract,blkgrp))
+
+# Block group population
+pop <- read_csv("population_blkgrp.csv")
+pop <- pop %>% 
+  mutate(tract_id = as.character(GEOID),
+         GEOID = as.character(GEOID)) 
+
+pop_est <- pop %>% 
+  select(GEOID, tract_id, totpop_est,
+         whiteper_est, blackper_est, ltnxper_est, remainper_est,
+         age17per_est, age18to64per_est, age65per_est, medhhinc_est
+  ) %>% 
+  mutate(GEOID = as.character(GEOID),
+         totpop_est = round(totpop_est,0),
+         whiteper_est = round(whiteper_est,0),
+         blackper_est = round(blackper_est,0),
+         ltnxper_est = round(ltnxper_est,0),
+         remainper_est = round(remainper_est,0),
+         age17per_est = round(age17per_est,0),
+         age18to64per_est = round(age18to64per_est,0),
+         age65per_est = round(age65per_est,0))
+
+## Read in/get geometries 
+blkgrp_geo <- st_read("esva_2020blkgrp_clipped.geojson")
+blkgrp_geo <- st_transform(blkgrp_geo, 4326)
+blkgrp_geo <- ms_simplify(blkgrp_geo) %>% 
+  sf::st_collection_extract()
+
+blkgrop_pop <- pop_est %>% 
+  left_join(blkgrp_names) %>% 
+  left_join(blkgrp_geo)
+
+blkgrop_pop <- blkgrop_pop %>% 
+  select(GEOID, tract_id, locality, localityfips, tract, blkgrp, names, 
+         totpop_est, whiteper_est, blackper_est, ltnxper_est, remainper_est,
+         age17per_est, age18to64per_est, age65per_est, medhhinc_est,
+         geometry)
+
+names(blkgrop_pop) = c("GEOID", "tract_id", "locality", "localityfips", "tract", "blkgrp", "names", 
+              "Estimated Population", "Percent White Population", "Percent Black Population", "Percent Hispanic Population", 
+              "All Others", "Population under 18 yrs", "Population 18-64 yrs", "Population over 65 yrs", 
+              "Median Household Income",
+              "geometry"
+)
+
+qs::qsave(blkgrop_pop, "blkgrop_pop.qs")
