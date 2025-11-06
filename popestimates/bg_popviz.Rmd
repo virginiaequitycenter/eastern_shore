@@ -256,12 +256,13 @@ pop_pov
   - Housing count: Estimated number of housing units
   - Percent vacant housing: Percent of vacant housing units
   - Median income: Median income of households
+  - Percent high income: Percent of households with household incomes $200,000 or more
   - Percent renting: Percent of households who are renting their home
   - Median rent: Median monthly rent paid by renting households
-  - Percent renters over \$2,000: Percent of renting households paying \$2,000 or more per month
+  - Percent high rent: Percent of renting households paying \$2,000 or more per month
   - Percent owning: Percent of households who own their home
   - Median house value: Median value of house among owning households
-  - Percent housing over \$500,000: Percent of owning households with house values of \$500,000 or more
+  - Percent high house value: Percent of owning households with house values of \$500,000 or more
 
 #### Housing count
 
@@ -335,7 +336,7 @@ sel_range <- c(min(breaks), max(breaks))
 
 pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
 
-hh_vacant <- leaflet(bg_full) %>%
+hh_medinc <- leaflet(bg_full) %>%
   addProviderTiles('CartoDB.Positron') %>%
   addPolygons(data = bg_full,
               weight = 0.5,
@@ -353,13 +354,44 @@ hh_vacant <- leaflet(bg_full) %>%
             title = "Median Household Income",
             opacity = 0.7)
 
-hh_vacant
+hh_medinc
+```
+
+#### Percent high income
+
+```{r hmap4}
+# high income
+breaks <- c(0,10,20,40,60,80,100)
+legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
+sel_range <- c(min(breaks), max(breaks))
+
+pal <- colorBin("Purples", sel_range, bins = breaks, right = TRUE, reverse = FALSE, na.color = "#808080", pretty = FALSE )
+
+hh_hiinc <- leaflet(bg_full) %>%
+  addProviderTiles('CartoDB.Positron') %>%
+  addPolygons(data = bg_full,
+              weight = 0.5,
+              color = "#FFFFFF",
+              smoothFactor = 0.2,
+              fillColor = ~pal(hh_per_hhinc_200K),
+              fillOpacity = 0.7,
+              popup = paste0("Value: ", round(bg_full$hh_per_hhinc_200K, 1))) %>%
+  addLegend(position = 'bottomright', 
+            pal = pal,
+            values = sel_range,
+            labFormat = function(type, breaks) {
+              return(legend_labels)
+            },
+            title = "Percent with Income $200K or more",
+            opacity = 0.7)
+
+hh_hiinc
 ```
 
 #### Percent renting
 
-```{r hmap4}
-# Vacant
+```{r hmap5}
+# Percent rent
 breaks <- c(0,10,20,40,60,80,100)
 legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
 sel_range <- c(min(breaks), max(breaks))
@@ -389,7 +421,7 @@ hh_rent
 
 #### Median rent
 
-```{r hmap5}
+```{r hmap6}
 # median rent
 breaks <- c(0,600,800,1000,1200,2000)
 legend_labels <- c("$600 or less", "$600 to $800", "$800 to $1,000", "$1,000 to $1,200", "$1,200 or more")
@@ -418,9 +450,9 @@ hh_medrent <- leaflet(bg_full) %>%
 hh_medrent
 ```
 
-#### Percent renters over $2,000
+#### Percent high rent
 
-```{r hmap6}
+```{r hmap7}
 # Percent high rent
 breaks <- c(0,10,20,40,60,80,100)
 legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
@@ -449,10 +481,10 @@ hh_rent2k <- leaflet(bg_full) %>%
 hh_rent2k
 ```
 
-##### Percent owning
+#### Percent owning
 
-```{r hmap7}
-# Vacant
+```{r hmap8}
+# Percent own
 breaks <- c(0,10,20,40,60,80,100)
 legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
 sel_range <- c(min(breaks), max(breaks))
@@ -485,7 +517,7 @@ hh_own
 
 #### Median house value
 
-```{r hmap8}
+```{r hmap9}
 # median house vale
 breaks <- c(0,100000,150000,250000,350000,600000)
 legend_labels <- c("$100K or less", "$100K to $150K", "$150K to $250K", "$250K to $350K", "$350K or more")
@@ -514,10 +546,10 @@ hh_medvalue <- leaflet(bg_full) %>%
 hh_medvalue
 ```
 
-#### Percent housing over $500,000
+#### Percent high house value
 
-```{r hmap9}
-# Percent high rent
+```{r hmap10}
+# Percent high house value
 breaks <- c(0,10,20,40,60,80,100)
 legend_labels <- c("10% or less", "10% to 20%", "20% to 40%", "40% to 60%", "60% to 80%", "80% to 100%")
 sel_range <- c(min(breaks), max(breaks))

@@ -95,7 +95,6 @@ blkgrp_65o <- blkgrp_age %>%
   summarize(pop_65overE = sum(estimate),
             pop_65over18M = moe_sum(moe, estimate))
 
-
 ##  - Own-Occ house value above (500K) -- B25075 (table)
 blkgrp_houseval <- get_acs(geography = "block group", 
                         table = "B25075", 
@@ -149,6 +148,8 @@ blkgrp_data <- blkgrp_data %>%
   mutate(pop_per_poverty = (pop_belowpovE/pop_belowpov_denE)*100) %>% 
   # percent vacant housing
   mutate(hh_per_vacant = (hh_vacantE/hh_totalE)*100) %>% 
+  # percent hh income over $200K
+  mutate(hh_per_hhinc_200K = (hh_inc200E/hh_inc200_denE)*100) %>% 
   # percent rented housing
   mutate(hh_per_rent = (hh_rentedE/hh_occupiedE)*100) %>% 
   # percent owned housing 500K+
@@ -160,7 +161,7 @@ blkgrp_data <- blkgrp_data %>%
 # ....................................................
 # 4. Brief review ----
 blkgrp_data %>% 
-  ggplot(aes(x = hh_rented_medrentE)) +
+  ggplot(aes(x = hh_per_hhinc_200K)) +
   geom_histogram()
 
 # ....................................................
@@ -171,8 +172,8 @@ saveRDS(blkgrp_data, file = "blkgrp_data.RDS")
 # key variables:
 # population: pop_totalE, pop_per_white, pop_per_black, pop_per_hisp, pop_per_multi, pop_per_remainingrace,
 #             pop_per_under18, pop_per_65over, pop_per_poverty
-# household: hh_totalE, hh_per_vacant, hh_per_rent, hh_medincE, hh_owned_medvalueE, hh_rented_medrentE
-#            hh_per_owend_500K, hh_per_rented_2k
+# household: hh_totalE, hh_per_vacant, hh_per_rent, hh_medincE, hh_per_hhinc_200K, 
+#            hh_owned_medvalueE, hh_rented_medrentE, hh_per_owend_500K, hh_per_rented_2k
 
 
 # ....................................................
