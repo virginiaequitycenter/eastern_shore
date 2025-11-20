@@ -12,7 +12,7 @@ library(highcharter)
 library(rcartocolor)
 
 # Read in data
-app_dat <- qs::qread("app_data_test.qs")
+app_dat <- qs::qread("esva_app_data.qs")
 input_choices = names(app_dat)
 esva_bbox <- c(-76.06697 , 37.04853, -75.16060,  38.04154)
 
@@ -723,7 +723,12 @@ server <- function(input, output, session){
                     smoothFactor = 0.2,
                     fillOpacity = 0.6,
                     fillColor = ~pal(var),
-                    label = lapply(lab, HTML)) %>%
+                    # popup = lapply(lab, HTML),
+                    label = lapply(lab, HTML),
+                    highlight = highlightOptions(
+                      weight = 2,
+                      fillOpacity = 0.9,
+                      bringToFront = F)) %>%
         addLegend(position = 'bottomright',
                   pal = pal,
                   values = sel_range,
