@@ -28,7 +28,7 @@ box_setwd(dir_id)
 
 box_fetch(
   dir_id = box_getwd(),
-  local_dir = "app_data/app_data_updated",
+  local_dir = "app_data/EA_Export",
   recursive = TRUE,
   overwrite = TRUE,
   delete = TRUE
@@ -43,7 +43,7 @@ get_boxid <- function(path) {
 }
 
 
-block_geo <- st_read("data/blocks/esva_2020block_clipped.geojson")
+block_geo <- st_read("app_data/blocks/esva_2020block_clipped.geojson")
 block_geo <- st_transform(block_geo, 4326) %>% 
   select(GEOID20)
 
@@ -61,13 +61,6 @@ pop_dat <- box_read_csv("2026502973438") %>%
 #          housing_units = total_housing) %>%
 #   select(GEOID20, housing_units)
 # write_csv(block_housing_data, "json_edits/block_housing_data.csv")
-
-# # Get counties
-# block_county <- pop_dat %>% 
-#   select(GEOID20, locality)
-# # Join counties
-# block_geo <- block_geo %>% 
-#   left_join(block_county)
 
 ## Total population baselines ----
 pop_total <- pop_dat %>% 
@@ -94,7 +87,7 @@ pop_total_north <- pop_total_county %>% filter(locality == "Northampton County")
 ea_prep_func <- function(eafile) {
   
   # Read in ea_export
-  ea_export <- fromJSON(paste0("app_data/app_data_updated/", eafile))
+  ea_export <- fromJSON(paste0("app_data/EA_Export/", eafile))
   
   # Get CSV-JSON
   json_path <- ea_export$data$path
@@ -259,12 +252,12 @@ ea_prep_func <- function(eafile) {
 }
 
 # Groundwater w/o sewers ----
-groundwater_rm_sewer_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[1])
-groundwater_rm_sewer_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[3])
-groundwater_rm_sewer_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[5])
-groundwater_rm_sewer_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[7])
-groundwater_rm_sewer_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[9])
-groundwater_rm_sewer_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[11])
+groundwater_rm_sewer_2024 <- ea_prep_func(list.files("app_data/EA_Export")[1])
+groundwater_rm_sewer_2030 <- ea_prep_func(list.files("app_data/EA_Export")[3])
+groundwater_rm_sewer_2040 <- ea_prep_func(list.files("app_data/EA_Export")[5])
+groundwater_rm_sewer_2050 <- ea_prep_func(list.files("app_data/EA_Export")[7])
+groundwater_rm_sewer_2060 <- ea_prep_func(list.files("app_data/EA_Export")[9])
+groundwater_rm_sewer_2080 <- ea_prep_func(list.files("app_data/EA_Export")[11])
 
 groundwater_rm_sewer <- list("2024"=groundwater_rm_sewer_2024, "2030"=groundwater_rm_sewer_2030, 
                              "2040"=groundwater_rm_sewer_2040, "2050"=groundwater_rm_sewer_2050, 
@@ -273,12 +266,12 @@ groundwater_rm_sewer <- list("2024"=groundwater_rm_sewer_2024, "2030"=groundwate
 save(groundwater_rm_sewer, file = "saved_rdata/groundwater_rm_sewer.Rda")
 
 # Groundwater ----
-groundwater_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[2])
-groundwater_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[4])
-groundwater_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[6])
-groundwater_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[8])
-groundwater_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[10])
-groundwater_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[12])
+groundwater_2024 <- ea_prep_func(list.files("app_data/EA_Export")[2])
+groundwater_2030 <- ea_prep_func(list.files("app_data/EA_Export")[4])
+groundwater_2040 <- ea_prep_func(list.files("app_data/EA_Export")[6])
+groundwater_2050 <- ea_prep_func(list.files("app_data/EA_Export")[8])
+groundwater_2060 <- ea_prep_func(list.files("app_data/EA_Export")[10])
+groundwater_2080 <- ea_prep_func(list.files("app_data/EA_Export")[12])
 
 groundwater <- list("2024"=groundwater_2024, "2030"=groundwater_2030, 
                     "2040"=groundwater_2040, "2050"=groundwater_2050, 
@@ -287,19 +280,19 @@ groundwater <- list("2024"=groundwater_2024, "2030"=groundwater_2030,
 save(groundwater, file = "saved_rdata/groundwater.Rda")
 
 # Storm Surge: Hurricane Dorian ----
-dr_2019 <- ea_prep_func(list.files("app_data/app_data_updated")[13])
+dr_2019 <- ea_prep_func(list.files("app_data/EA_Export")[13])
 dorian <- list("2019"=dr_2019)
 
 save(dorian, file = "saved_rdata/dorian.Rda")
 
 # Storm Surge Isabel ----
-ib_2003 <- ea_prep_func(list.files("app_data/app_data_updated")[14])
-ib_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[15])
-ib_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[16])
-ib_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[17])
-ib_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[18])
-ib_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[19])
-ib_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[20])
+ib_2003 <- ea_prep_func(list.files("app_data/EA_Export")[14])
+ib_2025 <- ea_prep_func(list.files("app_data/EA_Export")[15])
+ib_2030 <- ea_prep_func(list.files("app_data/EA_Export")[16])
+ib_2040 <- ea_prep_func(list.files("app_data/EA_Export")[17])
+ib_2050 <- ea_prep_func(list.files("app_data/EA_Export")[18])
+ib_2060 <- ea_prep_func(list.files("app_data/EA_Export")[19])
+ib_2080 <- ea_prep_func(list.files("app_data/EA_Export")[20])
 
 isabel <- list("2003"=ib_2003, "2025" = ib_2025, "2030"=ib_2030, 
                "2040"=ib_2040, "2050"=ib_2050, 
@@ -308,42 +301,42 @@ isabel <- list("2003"=ib_2003, "2025" = ib_2025, "2030"=ib_2030,
 save(isabel, file = "saved_rdata/isabel.Rda")
 
 # Storm Surge Hurricane Joaquin ----
-jq_2015 <- ea_prep_func(list.files("app_data/app_data_updated")[21])
+jq_2015 <- ea_prep_func(list.files("app_data/EA_Export")[21])
 joaquin <- list("2015"=jq_2015)
 
 save(joaquin, file = "saved_rdata/joaquin.Rda")
 
 # Storm Surge King Tide ----
-kt_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[22])
+kt_2009 <- ea_prep_func(list.files("app_data/EA_Export")[22])
 kingtide <- list("2009"=kt_2009)
 
 save(kingtide, file = "saved_rdata/kingtide.Rda")
 
 # Storm Surge Nor'Ida Storm ----
-ni_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[23])
+ni_2009 <- ea_prep_func(list.files("app_data/EA_Export")[23])
 norida <- list("2009"=ni_2009)
 
 save(norida, file = "saved_rdata/norida.Rda")
 
 # Storm Surge Sandy ----
-sd_2012 <- ea_prep_func(list.files("app_data/app_data_updated")[24])
+sd_2012 <- ea_prep_func(list.files("app_data/EA_Export")[24])
 sandy <- list("2012"=sd_2012)
 
 save(sandy, file = "saved_rdata/sandy.Rda")
 
 # Composite Storm Surge Risk ----
-composite_ss <- ea_prep_func(list.files("app_data/app_data_updated")[25])
+composite_ss <- ea_prep_func(list.files("app_data/EA_Export")[25])
 composite_risk <- list("Composite"=composite_ss)
 
 save(composite_risk, file = "saved_rdata/composite_risk.Rda")
 
 # Extreme Wetness/Dryness ----
-ewd_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[26])
-ewd_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[27])
-ewd_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[28])
-ewd_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[29])
-ewd_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[30])
-ewd_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[31])
+ewd_2025 <- ea_prep_func(list.files("app_data/EA_Export")[26])
+ewd_2030 <- ea_prep_func(list.files("app_data/EA_Export")[27])
+ewd_2040 <- ea_prep_func(list.files("app_data/EA_Export")[28])
+ewd_2050 <- ea_prep_func(list.files("app_data/EA_Export")[29])
+ewd_2060 <- ea_prep_func(list.files("app_data/EA_Export")[30])
+ewd_2080 <- ea_prep_func(list.files("app_data/EA_Export")[31])
 
 extremes <- list("2025" = ewd_2025, "2030"=ewd_2030, 
                  "2040"=ewd_2040, "2050"=ewd_2050, 
@@ -352,11 +345,11 @@ extremes <- list("2025" = ewd_2025, "2030"=ewd_2030,
 save(extremes, file = "saved_rdata/extremes.Rda")
 
 # Roadway flooding ----
-rdflood_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[32])
-rdflood_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[33])
-rdflood_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[34])
-rdflood_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[35])
-landuse_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[36])
+rdflood_2020 <- ea_prep_func(list.files("app_data/EA_Export")[32])
+rdflood_2040 <- ea_prep_func(list.files("app_data/EA_Export")[33])
+rdflood_2060 <- ea_prep_func(list.files("app_data/EA_Export")[34])
+rdflood_2080 <- ea_prep_func(list.files("app_data/EA_Export")[35])
+landuse_2025 <- ea_prep_func(list.files("app_data/EA_Export")[36])
 
 roadflood <- list("2020"=rdflood_2020, "2040"=rdflood_2040, "2060"=rdflood_2060, "2080"=rdflood_2080, 
                   "Current Land Cover"=landuse_2025)
@@ -364,28 +357,28 @@ roadflood <- list("2020"=rdflood_2020, "2040"=rdflood_2040, "2060"=rdflood_2060,
 save(roadflood, file = "saved_rdata/roadflood.Rda")
 
 # # Land Use/Land Cover - added above to inland flooding
-# landuse_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[29])
+# landuse_2025 <- ea_prep_func(list.files("app_data/EA_Export")[29])
 # landuse <- list("2025"=landuse_2025)
 # 
 # save(landuse, file = "saved_rdata/landuse.Rda")
 
 # Water Level Depth ----
-wld_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[37])
+wld_2020 <- ea_prep_func(list.files("app_data/EA_Export")[37])
 avg_wld <- list("2020-2023"=wld_2020)
 save(avg_wld, file = "saved_rdata/avg_wld.Rda")
 
 # Septic System Risk Assessment ----
-ssra_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[38])
+ssra_2020 <- ea_prep_func(list.files("app_data/EA_Export")[38])
 septic <- list("2020-2023"=ssra_2020)
 save(septic, file = "saved_rdata/septic.Rda")
 
 # Seawater intrusion w/out sewers ----
-swi_rm_sewer_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[39])
-swi_rm_sewer_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[41])
-swi_rm_sewer_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[43])
-swi_rm_sewer_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[45])
-swi_rm_sewer_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[47])
-swi_rm_sewer_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[49])
+swi_rm_sewer_2024 <- ea_prep_func(list.files("app_data/EA_Export")[39])
+swi_rm_sewer_2030 <- ea_prep_func(list.files("app_data/EA_Export")[41])
+swi_rm_sewer_2040 <- ea_prep_func(list.files("app_data/EA_Export")[43])
+swi_rm_sewer_2050 <- ea_prep_func(list.files("app_data/EA_Export")[45])
+swi_rm_sewer_2060 <- ea_prep_func(list.files("app_data/EA_Export")[47])
+swi_rm_sewer_2080 <- ea_prep_func(list.files("app_data/EA_Export")[49])
 
 swi_rm_sewer <- list("2024" = swi_rm_sewer_2024, "2030"=swi_rm_sewer_2030, 
             "2040"=swi_rm_sewer_2040, "2050"=swi_rm_sewer_2050, 
@@ -394,12 +387,12 @@ swi_rm_sewer <- list("2024" = swi_rm_sewer_2024, "2030"=swi_rm_sewer_2030,
 save(swi_rm_sewer, file = "saved_rdata/swi_rm_sewer.Rda")
 
 # Seawater intrusion ----
-swi_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[40])
-swi_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[42])
-swi_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[44])
-swi_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[46])
-swi_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[48])
-swi_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[50])
+swi_2024 <- ea_prep_func(list.files("app_data/EA_Export")[40])
+swi_2030 <- ea_prep_func(list.files("app_data/EA_Export")[42])
+swi_2040 <- ea_prep_func(list.files("app_data/EA_Export")[44])
+swi_2050 <- ea_prep_func(list.files("app_data/EA_Export")[46])
+swi_2060 <- ea_prep_func(list.files("app_data/EA_Export")[48])
+swi_2080 <- ea_prep_func(list.files("app_data/EA_Export")[50])
 
 swi <- list("2024" = swi_2024, "2030"=swi_2030, 
                     "2040"=swi_2040, "2050"=swi_2050, 
@@ -408,7 +401,7 @@ swi <- list("2024" = swi_2024, "2030"=swi_2030,
 save(swi, file = "saved_rdata/swi.Rda")
 
 # Housing ----
-housing_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[51])
+housing_2020 <- ea_prep_func(list.files("app_data/EA_Export")[51])
 
 housing <- list("U.S. Census, 2020" = housing_2020)
 
@@ -456,17 +449,17 @@ app_dat <- list(`Depth to Groundwater (Areas Without Sewer Access)`= groundwater
 qs::qsave(app_dat, "esva_app_data_12_2025.qs")
 
 
-## Population data ----
+# Population data ----
 
 ## Block Group names
-blkgrp_names <- read_excel("tract_names.xlsx", sheet = "blkgrp2020")
+blkgrp_names <- read_excel("app_data/tract_names.xlsx", sheet = "blkgrp2020")
 blkgrp_names <- blkgrp_names %>% 
   mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
          tract = str_pad(tract, width = 6, side = "left", pad = "0"),
          GEOID = paste0("51",localityfips,tract,blkgrp))
 
 # Block group population
-pop <- read_csv("population_blkgrp.csv")
+pop <- read_csv("app_data/population_blkgrp.csv")
 pop <- pop %>% 
   mutate(tract_id = as.character(GEOID),
          GEOID = as.character(GEOID)) 
@@ -487,7 +480,7 @@ pop_est <- pop %>%
          age65per_est = round(age65per_est,0))
 
 ## Read in/get geometries 
-blkgrp_geo <- st_read("esva_2020blkgrp_clipped.geojson")
+blkgrp_geo <- st_read("app_data/esva_2020blkgrp_clipped.geojson")
 blkgrp_geo <- st_transform(blkgrp_geo, 4326)
 blkgrp_geo <- ms_simplify(blkgrp_geo) %>% 
   sf::st_collection_extract()

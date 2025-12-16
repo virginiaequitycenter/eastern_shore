@@ -23,3 +23,13 @@ geography/ES_Mapping_Station*
 geography/es_tracts.ai
 geography/maps/
 materials/winterworkshop_2023/ESVA_Map.svg
+
+# other for esva-livability-tool
+~/.boxr-oauth
+dev/
+easternshore-dashboard/esva-livability-tool/app_data_archived/
+easternshore-dashboard/esva-livability-tool/json_edits/
+easternshore-dashboard/esva-livability-tool/rsconnect/
+easternshore-dashboard/esva-livability-tool/saved_rdata/
+easternshore-dashboard/esva-livability-tool/styles.css
+easternshore-dashboard/esva-livability-tool/test-images/
