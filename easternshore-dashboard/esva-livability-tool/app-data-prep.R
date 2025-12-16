@@ -52,14 +52,22 @@ block_geo <- ms_simplify(block_geo) %>%
 
 # Population data ---
 pop_dat <- box_read_csv("2026502973438") %>% 
+  separate_wider_delim(NAME, ", ", names = c(NA, NA, NA, "locality", NA)) %>% 
   mutate(GEOID20 = as.character(GEOID)) %>% 
-  select(GEOID20, total, hisp, black, white, pop_under18, total_housing, occupied_housing, jobs_wac, jobs_wac_low, jobs_rac, jobs_rac_low)
+  select(GEOID20, locality, total, hisp, black, white, pop_under18, total_housing, occupied_housing, jobs_wac, jobs_wac_low, jobs_rac, jobs_rac_low)
 
 # block_housing_data<- box_read_csv("2026502973438") %>%
 #   mutate(GEOID20 = as.character(GEOID),
 #          housing_units = total_housing) %>%
 #   select(GEOID20, housing_units)
 # write_csv(block_housing_data, "json_edits/block_housing_data.csv")
+
+# # Get counties
+# block_county <- pop_dat %>% 
+#   select(GEOID20, locality)
+# # Join counties
+# block_geo <- block_geo %>% 
+#   left_join(block_county)
 
 ## Total population baselines ----
 pop_total <- pop_dat %>% 
@@ -70,6 +78,17 @@ pop_total <- pop_dat %>%
          across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}"),
          bin = "ESVA Total", event = "none")
 
+pop_total_county <- pop_dat %>% 
+  group_by(locality) %>% 
+  summarize(across(c(total:jobs_rac_low), sum)) %>% 
+  mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
+         per_occupied_housing = (occupied_housing/total_housing)*100,
+         across(c(jobs_rac_low), ~ (.x/jobs_rac)*100, .names = "per_{.col}"),
+         across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}"),
+         bin = "ESVA Total", event = "none")
+
+pop_total_acc <- pop_total_county %>% filter(locality == "Accomack County")
+pop_total_north <- pop_total_county %>% filter(locality == "Northampton County")
 
 # Data prep function ----
 ea_prep_func <- function(eafile) {
@@ -85,17 +104,15 @@ ea_prep_func <- function(eafile) {
   # Get CSV
   csv_id <- get_boxid(json$path)
   csv <- box_read_csv(csv_id)
+  # csv <- box_read_csv("2045429539192")
   
   # Join geometry
   csv_geo <- csv %>% 
-    mutate(GEOID20 = as.character(GEOID20)) %>%
+    mutate(GEOID20 = as.character(GEOID20),
+           locality = case_when(substr(GEOID20, 1,5) == "51001" ~ "Accomack County",
+                                substr(GEOID20, 1,5) == "51131" ~ "Northampton County")) %>%
     left_join(block_geo, by = join_by(GEOID20 == GEOID20)) %>%
     st_as_sf()
-  
-  # Join with population data
-  # csv_pop <- csv %>% 
-  #   mutate(GEOID20 = as.character(GEOID20)) %>% 
-  #   left_join(pop_dat, by = join_by(GEOID20 == GEOID20))
   
   # Gather data for app
   region_bbox <- ea_export$regionBoundingBox
@@ -124,7 +141,8 @@ ea_prep_func <- function(eafile) {
     # print(unit)
     
     var <- quo(name)
-    map_data <- csv_geo %>% select(GEOID20, UQ(var), geometry)
+    map_data <- csv_geo %>% select(GEOID20, locality, UQ(var), geometry)
+    
     # print(var)
     legend_breaks <- as.vector(ea_export$dataColumns$bins[[i]])
     legend_labels <- as.list(ea_export$dataColumns$labels[[i]])
@@ -135,19 +153,20 @@ ea_prep_func <- function(eafile) {
       rev(brewer.pal(length(legend_labels), "YlGnBu"))
     } else if (str_detect(event, "Extreme")){
       carto_pal(length(legend_labels), "Earth")
+    ## Uncomment for Roadway Flooding ----
     # } else if (str_detect(dataCategories, "inlandflooding")) {
-    #   # c('#fff7ec', '#ffdbb7', '#ffbd8c', '#fe9c68', '#f57d4d', '#e4613a', '#cf4729', '#b72e1a', '#9c170d', '#7f0000') #OrRd
     #   c('#fff5f0', '#ffd6c6', '#ffb59c', '#ff9172', '#fb6a4a', '#e34e37', '#c83528', '#a91e1d', '#890b14', '#67000d') #Reds
-    #   # carto_pal(length(legend_labels), "SunsetDark")
-    #   # c('#efedf5', '#d8d4e8', '#c3bada', '#afa1cd', '#9c88c0', '#896fb2', '#7757a5', '#653e98', '#53248a', '#3f007d') #Purples
+    ## Uncomment for Housing ----
     # } else if (str_detect(dataCategories, "housing")){
     #   brewer.pal(length(legend_labels), "Purples")
     } else {brewer.pal(length(legend_labels), "GnBu")}
     
     
     csv_pop <- map_data %>% 
-      left_join(pop_dat, by = join_by(GEOID20 == GEOID20)) %>% 
+      left_join(pop_dat, by = join_by(GEOID20 == GEOID20, locality == locality)) %>% 
       st_drop_geometry()
+    
+    # View(csv_pop)
     
     # binning function
     bin_function <- function(name) {
@@ -167,6 +186,7 @@ ea_prep_func <- function(eafile) {
     group_vars <- syms(csv_pop %>% select(starts_with("bin")) %>% names())
     
     pop_data <- csv_pop %>% 
+      select(-locality) %>% 
       group_by(!!group_vars[[1]], event) %>%
       summarize(across(c(total:jobs_rac_low), sum)) %>% 
       mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
@@ -180,17 +200,47 @@ ea_prep_func <- function(eafile) {
       bind_rows(pop_total) %>% 
       mutate(bin = factor(bin, levels = c(legend_labels, "ESVA Total"))) 
       # select(bin, event, starts_with("per_"))
+    
+    pop_data_acc <- csv_pop %>% 
+      filter(locality == "Accomack County") %>%
+      group_by(!!group_vars[[1]], event) %>%
+      summarize(across(c(total:jobs_rac_low), sum)) %>% 
+      mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
+             per_occupied_housing = (occupied_housing/total_housing)*100,
+             across(c(jobs_rac_low), ~ (.x/jobs_rac)*100, .names = "per_{.col}"), 
+             across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}")) %>% 
+      ungroup() %>% 
+      mutate(per_total = (total/sum(total))*100,
+             per_housing = (total_housing/sum(total_housing))*100) %>% 
+      rename(bin = group_vars[[1]]) %>%
+      bind_rows(pop_total_acc) %>% 
+      mutate(bin = factor(bin, levels = c(legend_labels, "ESVA Total")))
+    
+    pop_data_north <- csv_pop %>% 
+      filter(locality == "Northampton County") %>%
+      group_by(!!group_vars[[1]], event) %>%
+      summarize(across(c(total:jobs_rac_low), sum)) %>% 
+      mutate(across(c(hisp:pop_under18), ~ (.x/total)*100, .names = "per_{.col}"),
+             per_occupied_housing = (occupied_housing/total_housing)*100,
+             across(c(jobs_rac_low), ~ (.x/jobs_rac)*100, .names = "per_{.col}"), 
+             across(c(jobs_wac_low), ~ (.x/jobs_wac)*100, .names = "per_{.col}")) %>% 
+      ungroup() %>% 
+      mutate(per_total = (total/sum(total))*100,
+             per_housing = (total_housing/sum(total_housing))*100) %>% 
+      rename(bin = group_vars[[1]]) %>%
+      bind_rows(pop_total_north) %>% 
+      mutate(bin = factor(bin, levels = c(legend_labels, "ESVA Total")))
 
     # add total housing to map_data
     map_data <- map_data %>% 
-      left_join(pop_dat, by = join_by(GEOID20 == GEOID20)) %>% 
-      select(GEOID20, UQ(var), total_housing, geometry)
+      left_join(pop_dat, by = join_by(GEOID20 == GEOID20, locality == locality)) %>% 
+      select(GEOID20, locality, UQ(var), total_housing, geometry)
     
     ls_name <- as.character(title)
     ls_name
     ls <- list(name=name, map_data=map_data, title=title, field_description=field_description, unit=unit,
                legend_breaks=legend_breaks, legend_labels=legend_labels, sel_range=sel_range, 
-               col_pal=col_pal, pop_data=pop_data)
+               col_pal=col_pal, pop_data=pop_data, pop_data_acc=pop_data_acc, pop_data_north=pop_data_north)
     # print(ls)
     # measures <- list(title=ls)
     measures <- append(measures, setNames(list(ls), as.character(title)))
@@ -208,7 +258,7 @@ ea_prep_func <- function(eafile) {
   
 }
 
-# Groundwater w/o sewers
+# Groundwater w/o sewers ----
 groundwater_rm_sewer_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[1])
 groundwater_rm_sewer_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[3])
 groundwater_rm_sewer_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[5])
@@ -222,7 +272,7 @@ groundwater_rm_sewer <- list("2024"=groundwater_rm_sewer_2024, "2030"=groundwate
 
 save(groundwater_rm_sewer, file = "saved_rdata/groundwater_rm_sewer.Rda")
 
-# Groundwater
+# Groundwater ----
 groundwater_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[2])
 groundwater_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[4])
 groundwater_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[6])
@@ -236,13 +286,13 @@ groundwater <- list("2024"=groundwater_2024, "2030"=groundwater_2030,
 
 save(groundwater, file = "saved_rdata/groundwater.Rda")
 
-# Storm Surge: Hurricane Dorian
+# Storm Surge: Hurricane Dorian ----
 dr_2019 <- ea_prep_func(list.files("app_data/app_data_updated")[13])
 dorian <- list("2019"=dr_2019)
 
 save(dorian, file = "saved_rdata/dorian.Rda")
 
-# Storm Surge Isabel
+# Storm Surge Isabel ----
 ib_2003 <- ea_prep_func(list.files("app_data/app_data_updated")[14])
 ib_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[15])
 ib_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[16])
@@ -257,37 +307,43 @@ isabel <- list("2003"=ib_2003, "2025" = ib_2025, "2030"=ib_2030,
 
 save(isabel, file = "saved_rdata/isabel.Rda")
 
-# Storm Surge Hurricane Joaquin
+# Storm Surge Hurricane Joaquin ----
 jq_2015 <- ea_prep_func(list.files("app_data/app_data_updated")[21])
 joaquin <- list("2015"=jq_2015)
 
 save(joaquin, file = "saved_rdata/joaquin.Rda")
 
-# Storm Surge King Tide
+# Storm Surge King Tide ----
 kt_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[22])
 kingtide <- list("2009"=kt_2009)
 
 save(kingtide, file = "saved_rdata/kingtide.Rda")
 
-# Storm Surge Nor'Ida Storm
+# Storm Surge Nor'Ida Storm ----
 ni_2009 <- ea_prep_func(list.files("app_data/app_data_updated")[23])
 norida <- list("2009"=ni_2009)
 
 save(norida, file = "saved_rdata/norida.Rda")
 
-# Composite Storm Surge Risk
-composite_ss <- ea_prep_func(list.files("app_data/app_data_updated")[24])
+# Storm Surge Sandy ----
+sd_2012 <- ea_prep_func(list.files("app_data/app_data_updated")[24])
+sandy <- list("2012"=sd_2012)
+
+save(sandy, file = "saved_rdata/sandy.Rda")
+
+# Composite Storm Surge Risk ----
+composite_ss <- ea_prep_func(list.files("app_data/app_data_updated")[25])
 composite_risk <- list("Composite"=composite_ss)
 
 save(composite_risk, file = "saved_rdata/composite_risk.Rda")
 
-# Extreme Wetness/Dryness
-ewd_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[25])
-ewd_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[26])
-ewd_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[27])
-ewd_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[28])
-ewd_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[29])
-ewd_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[30])
+# Extreme Wetness/Dryness ----
+ewd_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[26])
+ewd_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[27])
+ewd_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[28])
+ewd_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[29])
+ewd_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[30])
+ewd_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[31])
 
 extremes <- list("2025" = ewd_2025, "2030"=ewd_2030, 
                  "2040"=ewd_2040, "2050"=ewd_2050, 
@@ -295,12 +351,12 @@ extremes <- list("2025" = ewd_2025, "2030"=ewd_2030,
 
 save(extremes, file = "saved_rdata/extremes.Rda")
 
-# Inland flooding
-rdflood_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[31])
-rdflood_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[32])
-rdflood_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[33])
-rdflood_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[34])
-landuse_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[35])
+# Roadway flooding ----
+rdflood_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[32])
+rdflood_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[33])
+rdflood_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[34])
+rdflood_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[35])
+landuse_2025 <- ea_prep_func(list.files("app_data/app_data_updated")[36])
 
 roadflood <- list("2020"=rdflood_2020, "2040"=rdflood_2040, "2060"=rdflood_2060, "2080"=rdflood_2080, 
                   "Current Land Cover"=landuse_2025)
@@ -313,23 +369,23 @@ save(roadflood, file = "saved_rdata/roadflood.Rda")
 # 
 # save(landuse, file = "saved_rdata/landuse.Rda")
 
-# Water Level Depth
-wld_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[36])
+# Water Level Depth ----
+wld_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[37])
 avg_wld <- list("2020-2023"=wld_2020)
 save(avg_wld, file = "saved_rdata/avg_wld.Rda")
 
-# Septic System Risk Assessment
-ssra_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[37])
+# Septic System Risk Assessment ----
+ssra_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[38])
 septic <- list("2020-2023"=ssra_2020)
 save(septic, file = "saved_rdata/septic.Rda")
 
-# Seawater intrusion w/out sewers
-swi_rm_sewer_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[38])
-swi_rm_sewer_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[40])
-swi_rm_sewer_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[42])
-swi_rm_sewer_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[44])
-swi_rm_sewer_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[46])
-swi_rm_sewer_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[48])
+# Seawater intrusion w/out sewers ----
+swi_rm_sewer_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[39])
+swi_rm_sewer_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[41])
+swi_rm_sewer_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[43])
+swi_rm_sewer_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[45])
+swi_rm_sewer_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[47])
+swi_rm_sewer_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[49])
 
 swi_rm_sewer <- list("2024" = swi_rm_sewer_2024, "2030"=swi_rm_sewer_2030, 
             "2040"=swi_rm_sewer_2040, "2050"=swi_rm_sewer_2050, 
@@ -337,13 +393,13 @@ swi_rm_sewer <- list("2024" = swi_rm_sewer_2024, "2030"=swi_rm_sewer_2030,
 
 save(swi_rm_sewer, file = "saved_rdata/swi_rm_sewer.Rda")
 
-# Seawater intrusion
-swi_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[39])
-swi_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[33])
-swi_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[34])
-swi_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[35])
-swi_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[36])
-swi_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[37])
+# Seawater intrusion ----
+swi_2024 <- ea_prep_func(list.files("app_data/app_data_updated")[40])
+swi_2030 <- ea_prep_func(list.files("app_data/app_data_updated")[42])
+swi_2040 <- ea_prep_func(list.files("app_data/app_data_updated")[44])
+swi_2050 <- ea_prep_func(list.files("app_data/app_data_updated")[46])
+swi_2060 <- ea_prep_func(list.files("app_data/app_data_updated")[48])
+swi_2080 <- ea_prep_func(list.files("app_data/app_data_updated")[50])
 
 swi <- list("2024" = swi_2024, "2030"=swi_2030, 
                     "2040"=swi_2040, "2050"=swi_2050, 
@@ -351,8 +407,8 @@ swi <- list("2024" = swi_2024, "2030"=swi_2030,
 
 save(swi, file = "saved_rdata/swi.Rda")
 
-# Housing
-housing_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[38])
+# Housing ----
+housing_2020 <- ea_prep_func(list.files("app_data/app_data_updated")[51])
 
 housing <- list("U.S. Census, 2020" = housing_2020)
 
@@ -370,8 +426,8 @@ save(housing, file = "saved_rdata/housing.Rda")
 # load("saved_rdata/isabel.Rda")
 # load("saved_rdata/joaquin.Rda")
 # load("saved_rdata/kingtide.Rda")
-# # load("saved_rdata/landuse.Rda")
 # load("saved_rdata/norida.Rda")
+# load("saved_rdata/sandy.Rda")
 # load("saved_rdata/roadflood.Rda")
 # load("saved_rdata/septic.Rda")
 # load("saved_rdata/swi_rm_sewer.Rda")
@@ -385,10 +441,11 @@ app_dat <- list(`Depth to Groundwater (Areas Without Sewer Access)`= groundwater
                 `Inland Flooding`=roadflood,
                 `Seawater Intrusion (Areas Without Public Water Utilities)`=swi_rm_sewer,
                 `Seawater Intrusion`=swi,
-                `Composite Storm Surge Risk`=composite_risk,
-                `Storm Surge: Hurricane Dorian`=dorian, `Storm Surge: Hurricane Isabel`=isabel,
-                `Storm Surge: Hurricane Joaquin`=joaquin, `Storm Surge: King Tide`=kingtide,
-                `Storm Surge: Nor'Ida Storm`=norida, 
+                `Storm Surge` = list(
+                  `Composite Storm Surge Risk`=composite_risk,
+                  `Hurricane Dorian`=dorian, `Hurricane Isabel`=isabel,
+                  `Hurricane Joaquin`=joaquin, `Hurricane Sandy`=sandy, 
+                  `King Tide`=kingtide, `Nor'Ida Storm`=norida),
                 `Case Study Areas: Average Water Level Depth`=avg_wld,
                 `Case Study Areas: Septic System Risk Assessment`=septic,
                 `Housing`=housing
@@ -396,7 +453,7 @@ app_dat <- list(`Depth to Groundwater (Areas Without Sewer Access)`= groundwater
 
   
   
-qs::qsave(app_dat, "esva_app_data.qs")
+qs::qsave(app_dat, "esva_app_data_12_2025.qs")
 
 
 ## Population data ----

@@ -1,6 +1,6 @@
 # Eastern Shore of Virginia Livability Tool
 
-# Libraries
+# Libraries ----
 library(shiny)
 library(tidyverse)
 library(sf)
@@ -11,8 +11,8 @@ library(qs)
 library(highcharter)
 library(rcartocolor)
 
-# Read in data
-app_dat <- qs::qread("esva_app_data.qs")
+# Read in data ----
+app_dat <- qs::qread("esva_app_data_12_2025.qs")
 input_choices = names(app_dat)
 esva_bbox <- c(-76.06697 , 37.04853, -75.16060,  38.04154)
 
@@ -34,6 +34,15 @@ ui <- page_navbar(
           choices = input_choices,
           selected = input_choices[1]
         ),
+        # # Only show this panel if Storm Surge is selected
+        conditionalPanel(
+          condition = "input.scenario_ww == 'Storm Surge'",
+          selectInput(
+            'storm',
+            label = 'Name',
+            choices = character(0)
+          )
+        ),
         selectInput(
           'scenario_yr',
           label = 'Year',
@@ -43,6 +52,12 @@ ui <- page_navbar(
           'scenario_m',
           label = 'Measure',
           choices = character(0)
+        ),
+        checkboxGroupInput(
+          'locality',
+          label = 'County',
+          choices = c("Accomack County", "Northampton County"),
+          selected = c("Accomack County", "Northampton County")
         )
       ),
       layout_columns(
@@ -84,13 +99,15 @@ ui <- page_navbar(
           )
         ),
         card(class= "bg-light fs-5 shadow-none",
-             "What percent of housing or people on the Eastern Shore of VA are in areas estimated to experience each outcome?"),
+             htmlOutput("population_title")
+             ),
         layout_column_wrap(
           highchartOutput('houseplot'),
           highchartOutput('totalplot'),
           width = 1/2),
         card(class= "bg-light fs-5 shadow-none",
-             "What percent of each group are in areas estimated to experience each outcome? Are these groups more or less impacted relative to their presence in the overall population on the Eastern Shore of VA?",
+             htmlOutput("population_subtitle"),
+             
              card_body(
                class = "fs-6",
                "Values above the dashed line mean a group is overrepresented for the outcome relative to their presence in the overall population. Values below the dashed line mean a group is underrepresented for the outcome relative to their presence in the overall population."
@@ -168,11 +185,11 @@ ui <- page_navbar(
     "Compare",
     layout_sidebar(
       fillable = TRUE,
-      sidebar = sidebar(
-        selectInput("compare",
-                    "Explore Comparisons",
-                    choices = c("Comparison 1", "Comparison 2"))
-      ),
+      # sidebar = sidebar(
+      #   selectInput("compare",
+      #               "Explore Comparisons",
+      #               choices = c("Comparison 1", "Comparison 2"))
+      # ),
       "In Development"
     )
   ), # end nav_panel
@@ -188,9 +205,13 @@ server <- function(input, output, session){
   
   listen_scen <- reactive(input$scenario_ww)
   
+  listen_storm <- reactive(input$storm)
+  
   listen_yr <- reactive(input$scenario_yr)
   
   listen_m <- reactive(input$scenario_m)
+  
+  listen_local <- reactive(input$locality)
   
   scenario_ww <- reactive({
     req(input$scenario_ww)
@@ -204,31 +225,79 @@ server <- function(input, output, session){
   
   observeEvent(list(scenario_ww(), listen_scen()), {
     choices <- names(scenario_ww())
+    # print(choices)
+    freezeReactiveValue(input, "storm")
     freezeReactiveValue(input, "scenario_yr")
     freezeReactiveValue(input, "scenario_m")
-    updateSelectInput(session, inputId = "scenario_yr", choices = choices)
+    if (input$scenario_ww == "Storm Surge"){
+      updateSelectInput(session, inputId = "storm", choices = choices)
+    } else {
+      updateSelectInput(session, inputId = "scenario_yr", choices = choices)
+    }
   })
+  
+  
+    storm <- reactive({
+      if (input$scenario_ww == "Storm Surge"){
+      req(scenario_ww(), input$storm)
+      for (i in seq_along(scenario_ww())) {
+        if (input$storm == names(scenario_ww())[i]) {
+          d <- scenario_ww()[[i]]
+        }
+      }
+      d
+      }
+    })
+    
+    observeEvent(list(storm(), listen_storm(), listen_scen()), {
+        choices <- names(storm())
+        freezeReactiveValue(input, "scenario_yr")
+        freezeReactiveValue(input, "scenario_m")
+        updateSelectInput(session, inputId = "scenario_yr", choices = choices)
+    })
+
   
   scenario_yr <- reactive({
     req(scenario_ww(), input$scenario_yr)
-    for (i in seq_along(scenario_ww())) {
-      if (input$scenario_yr == names(scenario_ww())[i]) {
-        d <- scenario_ww()[[i]][["measures"]]
+    if (input$scenario_ww == "Storm Surge"){
+      for (i in seq_along(storm())) {
+        if (input$scenario_yr == names(storm())[i]) {
+          d <- storm()[[i]][["measures"]]
+        }
       }
+      d
+    } else {
+      for (i in seq_along(scenario_ww())) {
+        if (input$scenario_yr == names(scenario_ww())[i]) {
+          d <- scenario_ww()[[i]][["measures"]]
+        }
+      }
+      d
     }
-    d
+    
   })
   
   observeEvent(list(scenario_yr(), listen_scen(), listen_yr()), {
     choices <- names(scenario_yr())
     freezeReactiveValue(input, "scenario_m")
-    updateSelectInput(session, inputId = "scenario_m", choices = choices)
+    if (input$scenario_ww == "Storm Surge"){
+      updateSelectInput(session, inputId = "scenario_m", choices = choices)
+    } else {
+      updateSelectInput(session, inputId = "scenario_m", choices = choices)
+    }
+    
   })
 
  dw <- reactive({
    req(input$scenario_yr, scenario_ww())
-    yr <- as.character(input$scenario_yr)
-    d <- scenario_ww()[[`yr`]]
+   if (input$scenario_ww == "Storm Surge"){
+     yr <- as.character(input$scenario_yr)
+     d <- storm()[[`yr`]]
+   } else {
+     yr <- as.character(input$scenario_yr)
+     d <- scenario_ww()[[`yr`]]
+   }
+    
   })
 
  dm <- reactive({
@@ -236,6 +305,17 @@ server <- function(input, output, session){
   ms <- as.character(input$scenario_m)
   d <- dw()[["measures"]][[`ms`]]
 
+ })
+ 
+ dp <- reactive({
+  d <-  if (length(input$locality) == 2){
+    dm()$pop_data
+  } else if("Accomack County" == input$locality){
+    dm()$pop_data_acc
+   }else if("Northampton County" == input$locality){
+     dm()$pop_data_north
+   }
+   
  })
 
 
@@ -271,6 +351,17 @@ server <- function(input, output, session){
  })
 
  output$meta_info <- renderUI({event_description()})
+ 
+ pop_title <- reactive({
+   d <- if (length(input$locality) == 2){
+     "on the Eastern Shore of VA"
+   } else if (length(input$locality) == 1){
+     paste0("in ", input$locality)
+   } else {""}
+ })
+ 
+ output$population_title <- renderUI({paste0("What percent of housing or people ", pop_title(), " are in areas estimated to experience each outcome?")})
+ output$population_subtitle <- renderUI({paste0("What percent of each group are in areas estimated to experience each outcome? Are these groups more or less impacted relative to their presence in the overall population ", pop_title(), "?")})
 
   # Map Functions -------------------------------------------------------
   ## Leaflet base map function ----
@@ -333,7 +424,7 @@ server <- function(input, output, session){
   # render leaflet map
   output$map1 <- renderLeafletFunction()
 
-  observeEvent(list(listen_scen(), listen_yr(), listen_m()), {
+  observeEvent(list(listen_scen(), listen_yr(), listen_m(), listen_local()), {
     p <- dm()
     
     name <- as.character(p$name)
@@ -345,6 +436,8 @@ server <- function(input, output, session){
                     right = TRUE,
                     pretty = FALSE )
     
+    p$map_data <- p$map_data %>% filter(locality %in% input$locality)
+    # print(p$map_data)
     p$map_data <- p$map_data %>% 
       mutate(housing_num = case_when(total_housing > 0 & total_housing < 10 ~ "<10",
                                      .default = as.character(total_housing)))
@@ -420,13 +513,19 @@ server <- function(input, output, session){
   # Hispanic plot ----
   output$hispplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
+    
+    # print(chart_dat)
   
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -449,7 +548,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_hisp, color_bin, td$title, chart_tot, 'Hispanic Residents') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Hispanic Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  return 'Hispanic Residents make up <b>' + this.y + '%' + '</b> of the population in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
   '<br/>' + 'Estimated Number of Hispanic Residents Experiencing this Outcome: <b>' + this.point.num_label + '</b><br/>'
   }"))
     
@@ -458,12 +557,16 @@ server <- function(input, output, session){
   # Black plot ----
   output$blackplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
     
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -482,7 +585,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_black, color_bin, td$title, chart_tot, 'Black Residents') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'Black Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  return 'Black Residents make up <b>' + this.y + '%' + '</b> of the population in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
   '<br/>' + 'Estimated Number of Black Residents Experiencing this Outcome: <b>' + this.point.num_label + '</b><br/>'
   }"))
     
@@ -491,12 +594,16 @@ server <- function(input, output, session){
   # White plot ----
   output$whiteplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
     
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -515,7 +622,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_white, color_bin, td$title, chart_tot, 'White Residents') %>% 
       hc_tooltip(formatter = JS("function(){
-  return 'White Residents make up <b>' + this.y + '%' + '</b> of the population<br/>in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  return 'White Residents make up <b>' + this.y + '%' + '</b> of the population in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
   '<br/>' + 'Estimated Number of White Residents Experiencing this Outcome: <b>' + this.point.num_label + '</b><br/>'
   }"))
     
@@ -524,12 +631,16 @@ server <- function(input, output, session){
   # Age plot ----
   output$ageplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
     
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -557,12 +668,16 @@ server <- function(input, output, session){
   # Low wage workers by residence plot ----
   output$wagehomeplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
     
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -589,12 +704,16 @@ server <- function(input, output, session){
   # Low wage workers plot ----
   output$wageplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
     
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -621,12 +740,16 @@ server <- function(input, output, session){
   # Total population plot ----
   output$totalplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
     
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -634,6 +757,7 @@ server <- function(input, output, session){
              per_total = round(per_total,0),
              num_label = prettyNum(total, big.mark = ","),
              outcome = td$title,
+             locality = paste(unlist(input$locality), collapse=' and '),
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
@@ -645,7 +769,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_total, color_bin, td$title, chart_tot, 'Total Population') %>% 
       hc_tooltip(formatter = JS("function(){
-  return '<b>' + this.y + '%' + '</b> of the population of the ESVA live in<br/>areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  return '<b>' + this.y + '%' + '</b> of the population of ' + this.point.locality + ' live in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
   '<br/>' + 'Estimated Population Experiencing this Outcome: <b>' + this.point.num_label + '</b><br/>'
   }"))
     
@@ -654,12 +778,16 @@ server <- function(input, output, session){
   # Total Housing Units plot ----
   output$houseplot <- renderHighchart({
     
+    shiny::validate(
+      need(input$locality, "Please select at least one county to display the chart.")
+    )
+    
     td <- dm()
     
     cat_labels <- td$legend_labels
     pal <- td$col_pal
     
-    chart_dat <- td$pop_data
+    chart_dat <- dp()
     
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -667,6 +795,7 @@ server <- function(input, output, session){
              per_housing = round(per_housing,0),
              num_label = prettyNum(total_housing, big.mark = ","),
              outcome = td$title,
+             locality = paste(unlist(input$locality), collapse=' and '),
              color_index = case_when(bin %in% cat_labels ~ match(bin, cat_labels)),
              color_bin = case_when(is.na(color_index) ~ "#808080",
                                    .default = pal[color_index])
@@ -678,7 +807,7 @@ server <- function(input, output, session){
     
     chart_func(chart_dat, bin, per_housing, color_bin, td$title, chart_tot, 'Total Housing Units') %>% 
       hc_tooltip(formatter = JS("function(){
-  return '<b>' + this.y + '%' + '</b> of housing units on the ESVA are in<br/>areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
+  return '<b>' + this.y + '%' + '</b> of housing units in ' + this.point.locality + ' are in areas experiencing the outcome: ' + this.point.outcome + ': <b>' + this.key + '</b><br/>' + 
   '<br/>' + 'Estimated Number of Housing Units in Areas with this Outcome: <b>' + this.point.num_label + '</b><br/>'
   }"))
     
