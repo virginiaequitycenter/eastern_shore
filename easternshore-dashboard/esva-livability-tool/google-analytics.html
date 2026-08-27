@@ -1,0 +1,22 @@
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-HNZVDQ41K1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-HNZVDQ41K1');
+  
+  $(document).on('change', 'select', function(e) {
+  gtag('event', 'widget', {
+    action: 'select data',
+    label: $(e.currentTarget).val()
+  });
+});
+
+$(document).on('click', 'a', function() {
+  gtag('event', 'a', { action: 'select link' });
+});
+
+</script>

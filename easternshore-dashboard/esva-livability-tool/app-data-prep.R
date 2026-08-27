@@ -9,7 +9,7 @@ library(leaflet)
 library(RColorBrewer)
 library(rcartocolor)
 library(bslib)
-library(qs)
+library(qs2)
 library(rmapshaper)
 library(readxl)
 
@@ -97,7 +97,8 @@ ea_prep_func <- function(eafile) {
   # Get CSV
   csv_id <- get_boxid(json$path)
   csv <- box_read_csv(csv_id)
-  # csv <- box_read_csv("2045429539192")
+  # csv <- box_read_csv("2131816389149")
+  # csv <- csv[, -7]
   
   # Join geometry
   csv_geo <- csv %>% 
@@ -280,49 +281,79 @@ groundwater <- list("2024"=groundwater_2024, "2030"=groundwater_2030,
 save(groundwater, file = "saved_rdata/groundwater.Rda")
 
 # Storm Surge: Hurricane Dorian ----
-dr_2019 <- ea_prep_func(list.files("app_data/EA_Export")[13])
-dorian <- list("2019"=dr_2019)
+# dr_2019 <- ea_prep_func(list.files("app_data/EA_Export")[13])
+# dorian <- list("2019"=dr_2019)
+# 
+# save(dorian, file = "saved_rdata/dorian.Rda")
 
-save(dorian, file = "saved_rdata/dorian.Rda")
+# Storm Surge: Hurricane Dorian +40 ----
+dr_2019_p40 <- ea_prep_func(list.files("app_data/EA_Export")[13])
+dorian_p40 <- list("2019"=dr_2019_p40)
+
+save(dorian_p40, file = "saved_rdata/dorian_p40.Rda")
 
 # Storm Surge Isabel ----
-ib_2003 <- ea_prep_func(list.files("app_data/EA_Export")[14])
-ib_2025 <- ea_prep_func(list.files("app_data/EA_Export")[15])
+ib_2003_p40 <- ea_prep_func(list.files("app_data/EA_Export")[14])
+
+isabel_p40 <- list("2003"=ib_2003_p40)
+
+save(isabel_p40, file = "saved_rdata/isabel_p40.Rda")
+
+# Future Storm Isabel
+# ib_2025 <- ea_prep_func(list.files("app_data/EA_Export")[15])
 ib_2030 <- ea_prep_func(list.files("app_data/EA_Export")[16])
 ib_2040 <- ea_prep_func(list.files("app_data/EA_Export")[17])
 ib_2050 <- ea_prep_func(list.files("app_data/EA_Export")[18])
 ib_2060 <- ea_prep_func(list.files("app_data/EA_Export")[19])
 ib_2080 <- ea_prep_func(list.files("app_data/EA_Export")[20])
 
-isabel <- list("2003"=ib_2003, "2025" = ib_2025, "2030"=ib_2030, 
+isabel <- list("2030"=ib_2030, 
                "2040"=ib_2040, "2050"=ib_2050, 
                "2060"=ib_2060, "2080"=ib_2080)
 
 save(isabel, file = "saved_rdata/isabel.Rda")
 
 # Storm Surge Hurricane Joaquin ----
-jq_2015 <- ea_prep_func(list.files("app_data/EA_Export")[21])
-joaquin <- list("2015"=jq_2015)
+# jq_2015 <- ea_prep_func(list.files("app_data/EA_Export")[21])
+# joaquin <- list("2015"=jq_2015)
+# 
+# save(joaquin, file = "saved_rdata/joaquin.Rda")
 
-save(joaquin, file = "saved_rdata/joaquin.Rda")
+# Storm Surge Hurricane Joaquin +40 ----
+jq_2015_p40 <- ea_prep_func(list.files("app_data/EA_Export")[21])
+joaquin_p40 <- list("2015"=jq_2015_p40)
+
+save(joaquin_p40, file = "saved_rdata/joaquin_p40.Rda")
 
 # Storm Surge King Tide ----
-kt_2009 <- ea_prep_func(list.files("app_data/EA_Export")[22])
-kingtide <- list("2009"=kt_2009)
+# kt_2009 <- ea_prep_func(list.files("app_data/EA_Export")[22])
+# kingtide <- list("2009"=kt_2009)
+# 
+# save(kingtide, file = "saved_rdata/kingtide.Rda")
 
-save(kingtide, file = "saved_rdata/kingtide.Rda")
+# Storm Surge King Tide +40 ----
+kt_2009_p40 <- ea_prep_func(list.files("app_data/EA_Export")[22])
+kingtide_p40 <- list("2009"=kt_2009_p40)
+
+save(kingtide_p40, file = "saved_rdata/kingtide_p40.Rda")
 
 # Storm Surge Nor'Ida Storm ----
-ni_2009 <- ea_prep_func(list.files("app_data/EA_Export")[23])
-norida <- list("2009"=ni_2009)
+# ni_2009 <- ea_prep_func(list.files("app_data/EA_Export")[23])
+# norida <- list("2009"=ni_2009)
+# 
+# save(norida, file = "saved_rdata/norida.Rda")
 
-save(norida, file = "saved_rdata/norida.Rda")
+# Storm Surge Nor'Ida Storm +40 ----
+ni_2009_p40 <- ea_prep_func(list.files("app_data/EA_Export")[23])
+norida_p40 <- list("2009"=ni_2009_p40)
+
+save(norida_p40, file = "saved_rdata/norida_p40.Rda")
 
 # Storm Surge Sandy ----
-sd_2012 <- ea_prep_func(list.files("app_data/EA_Export")[24])
-sandy <- list("2012"=sd_2012)
+sd_2012_p40 <- ea_prep_func(list.files("app_data/EA_Export")[24])
+sandy_p40 <- list("2012"=sd_2012_p40)
 
-save(sandy, file = "saved_rdata/sandy.Rda")
+save(sandy_p40, file = "saved_rdata/sandy_p40.Rda")
 
 # Composite Storm Surge Risk ----
 composite_ss <- ea_prep_func(list.files("app_data/EA_Export")[25])
@@ -410,43 +441,53 @@ save(housing, file = "saved_rdata/housing.Rda")
 
 # Compile App data ----
 # Load previous data
-# load("saved_rdata/groundwater_rm_sewer.Rda")
-# load("saved_rdata/groundwater.Rda")
-# load("saved_rdata/avg_wld.Rda")
-# load("saved_rdata/composite_risk.Rda")
-# load("saved_rdata/dorian.Rda")
-# load("saved_rdata/extremes.Rda")
-# load("saved_rdata/isabel.Rda")
-# load("saved_rdata/joaquin.Rda")
-# load("saved_rdata/kingtide.Rda")
-# load("saved_rdata/norida.Rda")
-# load("saved_rdata/sandy.Rda")
-# load("saved_rdata/roadflood.Rda")
-# load("saved_rdata/septic.Rda")
-# load("saved_rdata/swi_rm_sewer.Rda")
-# load("saved_rdata/swi.Rda")
-# load("saved_rdata/housing.RDA")
+load("saved_rdata/groundwater_rm_sewer.Rda")
+load("saved_rdata/groundwater.Rda")
+load("saved_rdata/avg_wld.Rda")
+load("saved_rdata/extremes.Rda")
+load("saved_rdata/composite_risk.Rda")
+load("saved_rdata/dorian_p40.Rda")
+load("saved_rdata/isabel.Rda")
+load("saved_rdata/isabel_p40.Rda")
+load("saved_rdata/joaquin_p40.Rda")
+load("saved_rdata/kingtide_p40.Rda")
+load("saved_rdata/norida_p40.Rda")
+load("saved_rdata/sandy_p40.Rda")
+load("saved_rdata/roadflood.Rda")
+load("saved_rdata/septic.Rda")
+load("saved_rdata/swi_rm_sewer.Rda")
+load("saved_rdata/swi.Rda")
+load("saved_rdata/housing.Rda")
 
 
-app_dat <- list(`Depth to Groundwater (Areas Without Sewer Access)`= groundwater_rm_sewer, 
-                `Depth to Groundwater`=groundwater, 
+app_dat <- list(`Depth to Groundwater` = list(
+                  `Depth to Groundwater (Areas Without Sewer Access)`= groundwater_rm_sewer, 
+                  `Depth to Groundwater`=groundwater), 
                 `Extreme Wetness/Dryness`=extremes, 
                 `Inland Flooding`=roadflood,
-                `Seawater Intrusion (Areas Without Public Water Utilities)`=swi_rm_sewer,
-                `Seawater Intrusion`=swi,
-                `Storm Surge` = list(
-                  `Composite Storm Surge Risk`=composite_risk,
-                  `Hurricane Dorian`=dorian, `Hurricane Isabel`=isabel,
-                  `Hurricane Joaquin`=joaquin, `Hurricane Sandy`=sandy, 
-                  `King Tide`=kingtide, `Nor'Ida Storm`=norida),
-                `Case Study Areas: Average Water Level Depth`=avg_wld,
-                `Case Study Areas: Septic System Risk Assessment`=septic,
-                `Housing`=housing
+                `Seawater Intrusion` = list(
+                  `Seawater Intrusion (Areas Without Public Water Utilities)`=swi_rm_sewer,
+                  `Seawater Intrusion`=swi
+                ),
+                `Composite Storm Surge Risk` = composite_risk,
+                `Historic Event Storm Surge` = list(
+                  `Hurricane Dorian`=dorian_p40,
+                  `Hurricane Joaquin`=joaquin_p40,
+                  `Hurricane Sandy`=sandy_p40,
+                  `Nor'Ida Storm`=norida_p40,
+                  `King Tide`=kingtide_p40,
+                  `Hurricane Isabel`=isabel_p40),
+                `Future Storm Surge Flooding` = list(
+                  `Hurricane Isabel`=isabel),
+                `Small Area Case Study` = list(
+                  `Average Water Level Depth`=avg_wld,
+                  `Septic System Risk Assessment`=septic),
+                `Block Level Housing`=housing
                 )
 
   
   
-qs::qsave(app_dat, "esva_app_data_12_2025.qs")
+qs_save(app_dat, "esva_app_data_8_2026.qs2")
 
 
 # Population data ----
@@ -456,28 +497,30 @@ blkgrp_names <- read_excel("app_data/tract_names.xlsx", sheet = "blkgrp2020")
 blkgrp_names <- blkgrp_names %>% 
   mutate(localityfips = str_pad(localityfips, width = 3, side = "left", pad = "0"),
          tract = str_pad(tract, width = 6, side = "left", pad = "0"),
-         GEOID = paste0("51",localityfips,tract,blkgrp))
+         GEOID = paste0("51",localityfips,tract,blkgrp)) %>% 
+  rename(blkgrp_name = names,
+         local_nam = locality)
 
 # Block group population
-pop <- read_csv("app_data/population_blkgrp.csv")
-pop <- pop %>% 
-  mutate(tract_id = as.character(GEOID),
-         GEOID = as.character(GEOID)) 
-
-pop_est <- pop %>% 
-  select(GEOID, tract_id, totpop_est,
-         whiteper_est, blackper_est, ltnxper_est, remainper_est,
-         age17per_est, age18to64per_est, age65per_est, medhhinc_est
-  ) %>% 
-  mutate(GEOID = as.character(GEOID),
-         totpop_est = round(totpop_est,0),
-         whiteper_est = round(whiteper_est,0),
-         blackper_est = round(blackper_est,0),
-         ltnxper_est = round(ltnxper_est,0),
-         remainper_est = round(remainper_est,0),
-         age17per_est = round(age17per_est,0),
-         age18to64per_est = round(age18to64per_est,0),
-         age65per_est = round(age65per_est,0))
+# pop <- read_csv("app_data/population_blkgrp.csv")
+# pop <- pop %>% 
+#   mutate(tract_id = as.character(GEOID),
+#          GEOID = as.character(GEOID)) 
+# 
+# pop_est <- pop %>% 
+#   select(GEOID, tract_id, totpop_est,
+#          whiteper_est, blackper_est, ltnxper_est, remainper_est,
+#          age17per_est, age18to64per_est, age65per_est, medhhinc_est
+#   ) %>% 
+#   mutate(GEOID = as.character(GEOID),
+#          totpop_est = round(totpop_est,0),
+#          whiteper_est = round(whiteper_est,0),
+#          blackper_est = round(blackper_est,0),
+#          ltnxper_est = round(ltnxper_est,0),
+#          remainper_est = round(remainper_est,0),
+#          age17per_est = round(age17per_est,0),
+#          age18to64per_est = round(age18to64per_est,0),
+#          age65per_est = round(age65per_est,0))
 
 ## Read in/get geometries 
 blkgrp_geo <- st_read("app_data/esva_2020blkgrp_clipped.geojson")
@@ -485,21 +528,150 @@ blkgrp_geo <- st_transform(blkgrp_geo, 4326)
 blkgrp_geo <- ms_simplify(blkgrp_geo) %>% 
   sf::st_collection_extract()
 
-blkgrop_pop <- pop_est %>% 
-  left_join(blkgrp_names) %>% 
-  left_join(blkgrp_geo)
+# blkgrp_pop <- pop_est %>% 
+#   left_join(blkgrp_names) %>% 
+#   left_join(blkgrp_geo)
+# 
+# blkgrp_pop <- blkgrp_pop %>% 
+#   select(GEOID, tract_id, locality, localityfips, tract, blkgrp, names, 
+#          totpop_est, whiteper_est, blackper_est, ltnxper_est, remainper_est,
+#          age17per_est, age18to64per_est, age65per_est, medhhinc_est,
+#          geometry)
+# 
+# names(blkgrp_pop) = c("GEOID", "tract_id", "locality", "localityfips", "tract", "blkgrp", "names", 
+#               "Estimated Population", "Percent White Population", "Percent Black Population", "Percent Hispanic Population", 
+#               "All Others", "Population under 18 yrs", "Population 18-64 yrs", "Population over 65 yrs", 
+#               "Median Household Income",
+#               "geometry"
+# )
 
-blkgrop_pop <- blkgrop_pop %>% 
-  select(GEOID, tract_id, locality, localityfips, tract, blkgrp, names, 
-         totpop_est, whiteper_est, blackper_est, ltnxper_est, remainper_est,
-         age17per_est, age18to64per_est, age65per_est, medhhinc_est,
-         geometry)
+# qs::qsave(blkgrp_pop, "blkgrp_pop.qs")
 
-names(blkgrop_pop) = c("GEOID", "tract_id", "locality", "localityfips", "tract", "blkgrp", "names", 
-              "Estimated Population", "Percent White Population", "Percent Black Population", "Percent Hispanic Population", 
-              "All Others", "Population under 18 yrs", "Population 18-64 yrs", "Population over 65 yrs", 
-              "Median Household Income",
-              "geometry"
+# Block group data prep function ----
+ea_blkgrp_func <- function(eafile) {
+  
+  # Read in ea_export
+  ea_export <- fromJSON(eafile)
+  
+  # Get CSV-JSON
+  json_path <- ea_export$data$path
+  json_id <- get_boxid(json_path)
+  json <- box_read_json(file_id = json_id)
+  
+  # Get CSV
+  csv_id <- get_boxid(json$path)
+  csv <- box_read_csv(csv_id)
+  # csv <- box_read_csv("2045429539192")
+  # csv <- read_csv("app_data/blkgrp_data.csv")
+  
+  # Join geometry
+  csv_geo <- csv %>% 
+    mutate(GEOID = as.character(GEOID),
+           locality = case_when(substr(GEOID, 1,5) == "51001" ~ "Accomack County",
+                                substr(GEOID, 1,5) == "51131" ~ "Northampton County"),
+           hh_per_own = 100-hh_per_rent) %>%
+    left_join(blkgrp_names, by = join_by(GEOID == GEOID)) %>% 
+    left_join(blkgrp_geo, by = join_by(GEOID == GEOID)) %>%
+    st_as_sf()
+  
+  # Gather data for app
+  region_bbox <- ea_export$regionBoundingBox
+  bbox <- c(region_bbox$lonMin, region_bbox$latMin, region_bbox$lonMax, region_bbox$latMax)
+  
+  year <- ea_export$data$key
+  descriptionTitle <- ea_export$descriptionTitle
+  event <- ea_export$event
+  description <- ea_export$descriptionText
+  dataCategories <- ea_export$dataCategories
+  
+  measures <- list() 
+  
+  for (i in seq_along(ea_export$dataColumns$name)) {
+    name <- ea_export$dataColumns$name[i]
+    name_index <- match(name, json$schema$fields$name)
+    title <- json$schema$fields$title[name_index]
+    field_description <- json$schema$fields$description[name_index]
+    # field_description <- ea_export$dataColumns$`$description`[[i]]
+    
+    # print(names(json$schema$fields))
+    unit <- if("unit" %in% names(json$schema$fields)){
+      n <- json$schema$fields$unit[name_index]
+      if(n == "none" | n == "-"){NULL} else {n}
+    } else {NULL}
+    # print(unit)
+    
+    var <- quo(name)
+    map_data <- csv_geo %>% select(GEOID, locality, blkgrp_name, UQ(var), geometry)
+    
+    # print(var)
+    legend_breaks <- as.vector(ea_export$dataColumns$bins[[i]])
+    legend_labels <- as.list(ea_export$dataColumns$labels[[i]])
+    
+    sel_range <- c(min(legend_breaks), max(legend_breaks))
+    
+    col_pal <- brewer.pal(length(legend_labels), "Purples")
+    
+    ls_name <- as.character(title)
+    ls_name
+    ls <- list(name=name, map_data=map_data, title=title, field_description=field_description, unit=unit,
+               legend_breaks=legend_breaks, legend_labels=legend_labels, sel_range=sel_range, 
+               col_pal=col_pal)
+    # print(ls)
+    # measures <- list(title=ls)
+    measures <- append(measures, setNames(list(ls), as.character(title)))
+    # measures <- append(measures, list(title=ls))
+    # print(measures)
+  }
+  
+  # print(measures)
+  
+  file_prep <- list(year=year, event=event, description=description, 
+                    descriptionTitle=descriptionTitle, bbox=bbox,
+                    measures=measures)
+  
+  file_prep
+  
+}
+
+# Population ----
+blkgrp_pop <- ea_blkgrp_func("app_data/blkgrp_pop_EA.json")
+
+population <- list("ACS 5-year 2020-2024" = blkgrp_pop)
+
+save(population, file = "saved_rdata/population.Rda")
+
+# # Household Income ----
+# blkgrp_hhinc <- ea_blkgrp_func("app_data/blkgrp_income_EA.json")
+# 
+# hhincome <- list("ACS 5-year 2020-2024" = blkgrp_hhinc)
+# 
+# save(hhincome, file = "saved_rdata/hhincome.Rda")
+
+# Households ----
+blkgrp_housing <- ea_blkgrp_func("app_data/blkgrp_housing_EA.json")
+
+pop_housing <- list("ACS 5-year 2020-2024" = blkgrp_housing)
+
+save(pop_housing, file = "saved_rdata/pop_housing.Rda")
+
+
+# Read in previous pop data ----
+load("saved_rdata/population.Rda")
+load("saved_rdata/pop_housing.Rda")
+
+
+# Compile app data
+app_pop_dat <- list(`Population Measures`= population, 
+                `Household Measures`= pop_housing
 )
 
-qs::qsave(blkgrop_pop, "blkgrop_pop.qs")
+
+
+qs_save(app_pop_dat, "esva_app_pop_dat_8_2026.qs2")
+
+# Carto map API Key
+# Retrieve stored API key
+carto_key <- Sys.getenv("CARTO_API_KEY")
+carto_url <- paste0('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=', carto_key)
+
+saveRDS(carto_url, "esva_app_carto_url_8_2026.rds")

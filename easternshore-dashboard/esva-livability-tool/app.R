@@ -1,4 +1,6 @@
 # Eastern Shore of Virginia Livability Tool
+# Last updated: 8/26/2026
+# Last deployed: 8/26/2026
 
 # Libraries ----
 library(shiny)
@@ -7,18 +9,25 @@ library(sf)
 library(leaflet)
 library(RColorBrewer)
 library(bslib)
-library(qs)
+library(qs2)
 library(highcharter)
 library(rcartocolor)
+library(leaflet.extras2)
 
 # Read in data ----
-app_dat <- qs::qread("esva_app_data_12_2025.qs")
+app_dat <- qs2::qs_read("esva_app_data_8_2026.qs2")
 input_choices = names(app_dat)
 esva_bbox <- c(-76.06697 , 37.04853, -75.16060,  38.04154)
+carto_url <- readRDS("esva_app_carto_url_8_2026.rds")
 
-blkgrp <- qs::qread("blkgrop_pop.qs")
+blkgrp_dat <- qs2::qs_read("esva_app_pop_dat_8_2026.qs2")
+combine_dat <- c(app_dat, blkgrp_dat)
+combine_input_choices = names(combine_dat)
+
 
 ui <- page_navbar(
+  tags$head(includeHTML("google-analytics.html")),
+  id = "pages",
   title = span(img(src = 'esva-logo.png',
               height = 50),
     "Eastern Shore of Virginia Livability Tool"),
@@ -28,37 +37,15 @@ ui <- page_navbar(
     "Environmental Impacts",
     layout_sidebar(
       sidebar = sidebar(
-        selectInput(
-          'scenario_ww',
-          label = 'Topic',
-          choices = input_choices,
-          selected = input_choices[1]
-        ),
+        selectInput('scenario_ww', label = 'Topic', choices = input_choices, selected = input_choices[1]),
         # # Only show this panel if Storm Surge is selected
         conditionalPanel(
-          condition = "input.scenario_ww == 'Storm Surge'",
-          selectInput(
-            'storm',
-            label = 'Name',
-            choices = character(0)
-          )
+          condition = "input.scenario_ww == 'Depth to Groundwater'|input.scenario_ww == 'Historic Event Storm Surge'|input.scenario_ww == 'Future Storm Surge Flooding'|input.scenario_ww == 'Seawater Intrusion'|input.scenario_ww == 'Small Area Case Study'",
+          selectInput('storm', label = 'Name', choices = character(0))
         ),
-        selectInput(
-          'scenario_yr',
-          label = 'Year',
-          choices = character(0)
-        ),
-        selectInput(
-          'scenario_m',
-          label = 'Measure',
-          choices = character(0)
-        ),
-        checkboxGroupInput(
-          'locality',
-          label = 'County',
-          choices = c("Accomack County", "Northampton County"),
-          selected = c("Accomack County", "Northampton County")
-        )
+        selectInput('scenario_yr', label = 'Year', choices = character(0)),
+        selectInput('scenario_m', label = 'Measure', choices = character(0)),
+        checkboxGroupInput('locality', label = 'County', choices = c("Accomack County", "Northampton County"), selected = c("Accomack County", "Northampton County"))
       ),
       layout_columns(
         col_widths = 12,
@@ -130,68 +117,48 @@ ui <- page_navbar(
   ), # end nav_panel
   nav_panel(
     "Community Characteristics",
-    layout_sidebar(
-      fillable = TRUE,
-      sidebar = sidebar(
-        selectInput("community",
-                    "Social/Economic Indicator",
-                    choices = c("Estimated Population", "Median Household Income", 
-                                "Population under 18 yrs", "Population over 65 yrs",
-                                "Percent Black Population", "Percent Hispanic Population", "Percent White Population")
-                    )
-      ),
-      layout_columns(
-        col_widths = 12,
-        layout_columns(
-          col_widths = c(8,4),
-          leafletOutput('map2', width="100%", height = "650px"),
-          layout_columns(
-            col_widths = 12,
-            fill = FALSE,
-            # card(
-            #   class = "shadow-none",
-            #   card_header(class= "p-1 m-0",
-            #               "Selected Measure"),
-            #   card_body(class= "p-1 m-0",
-            #             "text")
-            # ),
-            card(
-              class = "shadow-none",
-              card_header(class= "p-1 m-0",
-                          "Selected Measure Description"),
-              card_body(class= "p-1 m-0",
-                        "TBD")
-            )
-            # card(
-            #   class = "shadow-none",
-            #   card_header(class= "p-1 m-0",
-            #               "Selected Year"),
-            #   card_body(class= "p-1 m-0",
-            #             "text")
-            # ),
-            # card(
-            #   class = "shadow-none",
-            #   card_header(class= "p-1 m-0",
-            #               "More Information"),
-            #   card_body(class= "p-1 m-0",
-            #             "text")
-            # )
-          )
-        )
-      )
-    ) # end layout_sidebar
+    communityUI("community1")
   ), # end nav_panel
+ 
   nav_panel(
     "Compare",
+    # compareUI("compare1")
     layout_sidebar(
+      sidebar = sidebar(
+        "Map #1 Selections",
+        selectInput('compare_a', label = 'Topic', choices = combine_input_choices, selected = combine_input_choices[1]),
+        # # Only show this panel if Storm Surge is selected
+        conditionalPanel(
+          condition = "input.compare_a == 'Depth to Groundwater'|input.compare_a == 'Historic Event Storm Surge'|input.compare_a == 'Future Storm Surge Flooding'|input.compare_a == 'Seawater Intrusion'|input.compare_a == 'Small Area Case Study'",
+          selectInput('compare_a_name', label = 'Name', choices = character(0)),
+        ),
+        selectInput('compare_a_yr', label = 'Year', choices = character(0)),
+        selectInput('compare_a_meas', label = 'Measure', choices = character(0))
+      ),
+      layout_sidebar(
+        sidebar = sidebar(
+          "Map #2 Selections",
+          selectInput('compare_b', label = 'Topic', choices = combine_input_choices, selected = combine_input_choices[1]),
+          # # Only show this panel if Storm Surge is selected
+          conditionalPanel(
+            condition = "input.compare_b == 'Depth to Groundwater'|input.compare_b == 'Historic Event Storm Surge'|input.compare_b == 'Future Storm Surge Flooding'|input.compare_b == 'Seawater Intrusion'|input.compare_b == 'Small Area Case Study'",
+            selectInput('compare_b_name', label = 'Name', choices = character(0)),
+          ),
+          selectInput('compare_b_yr', label = 'Year', choices = character(0)),
+          selectInput('compare_b_meas', label = 'Measure', choices = character(0)),
+          position = "right",
+          open = TRUE
+        ),
+        splitLayout(cellWidths = rep("50%", 2),
+                    leafletOutput("mapcompare1", height = 700),
+                    leafletOutput("mapcompare2", height = 700)
+        ),
+        border = FALSE),
+      border_radius = FALSE,
       fillable = TRUE,
-      # sidebar = sidebar(
-      #   selectInput("compare",
-      #               "Explore Comparisons",
-      #               choices = c("Comparison 1", "Comparison 2"))
-      # ),
-      "In Development"
+      class = "p-0"
     )
+    
   ), # end nav_panel
   nav_spacer(),
   nav_panel(
@@ -223,43 +190,47 @@ server <- function(input, output, session){
     d
   })
   
-  observeEvent(list(scenario_ww(), listen_scen()), {
+  observeEvent(list(listen_scen()), {
     choices <- names(scenario_ww())
-    # print(choices)
     freezeReactiveValue(input, "storm")
     freezeReactiveValue(input, "scenario_yr")
     freezeReactiveValue(input, "scenario_m")
-    if (input$scenario_ww == "Storm Surge"){
+    if (input$scenario_ww %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      
       updateSelectInput(session, inputId = "storm", choices = choices)
     } else {
+      
       updateSelectInput(session, inputId = "scenario_yr", choices = choices)
     }
-  })
+  }, priority = 3)
   
   
     storm <- reactive({
-      if (input$scenario_ww == "Storm Surge"){
-      req(scenario_ww(), input$storm)
+      req(input$scenario_ww)
+      if (input$scenario_ww %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
       for (i in seq_along(scenario_ww())) {
+        req(input$storm)
         if (input$storm == names(scenario_ww())[i]) {
           d <- scenario_ww()[[i]]
         }
       }
-      d
+        d
       }
     })
     
-    observeEvent(list(storm(), listen_storm(), listen_scen()), {
+    
+    observeEvent(list(listen_storm(), input$storm), {
         choices <- names(storm())
         freezeReactiveValue(input, "scenario_yr")
         freezeReactiveValue(input, "scenario_m")
         updateSelectInput(session, inputId = "scenario_yr", choices = choices)
-    })
+    }, priority = 2)
 
   
   scenario_yr <- reactive({
     req(scenario_ww(), input$scenario_yr)
-    if (input$scenario_ww == "Storm Surge"){
+    if (input$scenario_ww %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      req(storm())
       for (i in seq_along(storm())) {
         if (input$scenario_yr == names(storm())[i]) {
           d <- storm()[[i]][["measures"]]
@@ -280,17 +251,17 @@ server <- function(input, output, session){
   observeEvent(list(scenario_yr(), listen_scen(), listen_yr()), {
     choices <- names(scenario_yr())
     freezeReactiveValue(input, "scenario_m")
-    if (input$scenario_ww == "Storm Surge"){
+    if (input$scenario_ww %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
       updateSelectInput(session, inputId = "scenario_m", choices = choices)
     } else {
       updateSelectInput(session, inputId = "scenario_m", choices = choices)
     }
     
-  })
+  }, priority = 1)
 
  dw <- reactive({
    req(input$scenario_yr, scenario_ww())
-   if (input$scenario_ww == "Storm Surge"){
+   if (input$scenario_ww %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
      yr <- as.character(input$scenario_yr)
      d <- storm()[[`yr`]]
    } else {
@@ -308,6 +279,7 @@ server <- function(input, output, session){
  })
  
  dp <- reactive({
+   req(dm())
   d <-  if (length(input$locality) == 2){
     dm()$pop_data
   } else if("Accomack County" == input$locality){
@@ -332,6 +304,7 @@ server <- function(input, output, session){
  output$meta_measure <- renderUI({event_title()})
  
  event_meas_descript <- reactive({
+   req(dm())
    d <- dm()
    d <- d$field_description
  })
@@ -369,8 +342,10 @@ server <- function(input, output, session){
   renderLeafletFunction <- function(map) {
     renderLeaflet({
       leaflet() %>%
-        addProviderTiles('CartoDB.Positron',
-                         options = providerTileOptions(minZoom = 8, maxZoom = 18)) %>%
+        addTiles(urlTemplate = carto_url,
+                 options = providerTileOptions(minZoom = 8, maxZoom = 18)) |>
+        # addProviderTiles('CartoDB.Positron',
+        #                  options = providerTileOptions(minZoom = 8, maxZoom = 18)) %>%
         fitBounds(esva_bbox[1], esva_bbox[2], esva_bbox[3], esva_bbox[4]) %>%
         addResetMapButton()
     })
@@ -423,6 +398,8 @@ server <- function(input, output, session){
   
   # render leaflet map
   output$map1 <- renderLeafletFunction()
+ 
+  outputOptions(output, "map1", priority = 0)
 
   observeEvent(list(listen_scen(), listen_yr(), listen_m(), listen_local()), {
     p <- dm()
@@ -437,7 +414,7 @@ server <- function(input, output, session){
                     pretty = FALSE )
     
     p$map_data <- p$map_data %>% filter(locality %in% input$locality)
-    # print(p$map_data)
+    
     p$map_data <- p$map_data %>% 
       mutate(housing_num = case_when(total_housing > 0 & total_housing < 10 ~ "<10",
                                      .default = as.character(total_housing)))
@@ -516,7 +493,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -524,8 +501,6 @@ server <- function(input, output, session){
     pal <- td$col_pal
     
     chart_dat <- dp()
-    
-    # print(chart_dat)
   
     chart_dat <- chart_dat %>% 
       mutate(bin = case_when(is.na(bin) ~ "N/A",
@@ -560,7 +535,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -597,7 +572,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -634,7 +609,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -671,7 +646,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -707,7 +682,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -743,7 +718,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -781,7 +756,7 @@ server <- function(input, output, session){
     shiny::validate(
       need(input$locality, "Please select at least one county to display the chart.")
     )
-    
+    req(dm())
     td <- dm()
     
     cat_labels <- td$legend_labels
@@ -813,35 +788,264 @@ server <- function(input, output, session){
     
   })
   
-# Build Community Characteristics Map -------------------------------------------------------
+  # Build Community Characteristics Map -------------------------------------------------------
+  communityServer("community1")
   
-  mp <- reactive({blkgrp})
-  
-  listen_pop <- reactive(input$community)
-  
-  ### leafletProxy Map Function ---- 
-  mapFunction2 <- function(mapData, mapId,
-                           var, var_title,
-                           pal, sel_range){
-    
-    lab <- if(var_title=="Median Household Income"){
-      as.list(paste0(var_title, ": $", prettyNum(var,big.mark=",")))
-    } else if(var_title=="Estimated Population"){
-      as.list(paste0(var_title, ": ", prettyNum(var,big.mark=",") ))
-    } else {as.list(paste0(var_title, ": ", var, "%"))}
-    
-    formatted_labels <- if(var_title=="Median Household Income"){
-      labelFormat(prefix = "$")
-    } else if(var_title=="Estimated Population"){
-      labelFormat(big.mark = ",")
-    } else {
-      labelFormat(suffix = "%")
+  # Build Comparison Maps -------------------------------------------------------
+
+  listen_compare <- reactive(input$compare_a)
+
+  listen_name <- reactive(input$compare_a_name)
+
+  listen_compare_yr <- reactive(input$compare_a_yr)
+
+  listen_compare_meas <- reactive(input$compare_a_meas)
+
+  compare_a <- reactive({
+    req(input$compare_a)
+    for (i in seq_along(names(combine_dat))) {
+      if (input$compare_a == names(combine_dat)[i]) {
+        d <- combine_dat[[i]]
+      }
     }
-    
-    ### map proxy
+    req(d)
+    d
+  })
+
+  observeEvent(list(compare_a(), listen_compare()), {
+    choices <- names(compare_a())
+    freezeReactiveValue(input, "compare_a_name")
+    freezeReactiveValue(input, "compare_a_yr")
+    freezeReactiveValue(input, "compare_a_meas")
+    if (input$compare_a %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      updateSelectInput(session, inputId = "compare_a_name", choices = choices)
+    } else {
+      updateSelectInput(session, inputId = "compare_a_yr", choices = choices)
+    }
+  }, priority = 3)
+
+
+  compare_a_name <- reactive({
+    req(compare_a())
+    req(input$compare_a_name)
+    if (input$compare_a %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      for (i in seq_along(compare_a())) {
+        req(compare_a())
+        if (input$compare_a_name == names(compare_a())[i]) {
+          d <- compare_a()[[i]]
+        }
+      }
+      req(d)
+      d
+    }
+  })
+
+  observeEvent(list(compare_a_name(), listen_name(), listen_compare()), {
+    choices <- names(compare_a_name())
+    freezeReactiveValue(input, "compare_a_yr")
+    freezeReactiveValue(input, "compare_a_meas")
+    updateSelectInput(session, inputId = "compare_a_yr", choices = choices)
+  }, priority = 2)
+
+
+  compare_a_yr <- reactive({
+    req(compare_a(), input$compare_a_yr)
+    if (input$compare_a %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      for (i in seq_along(compare_a_name())) {
+        if (input$compare_a_yr == names(compare_a_name())[i]) {
+          req(compare_a_name())
+          d <- compare_a_name()[[i]][["measures"]]
+        }
+      }
+      req(d)
+      d
+    } else {
+      for (i in seq_along(compare_a())) {
+        if (input$compare_a_yr == names(compare_a())[i]) {
+          d <- compare_a()[[i]][["measures"]]
+        }
+      }
+      req(d)
+      d
+    }
+
+  })
+
+  observeEvent(list(compare_a_yr(), listen_compare(), listen_compare_yr()), {
+    choices <- names(compare_a_yr())
+    freezeReactiveValue(input, "compare_a_meas")
+    if (input$compare_a %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      updateSelectInput(session, inputId = "compare_a_meas", choices = choices)
+    } else {
+      updateSelectInput(session, inputId = "compare_a_meas", choices = choices)
+    }
+
+  }, priority = 1)
+
+  cw <- reactive({
+    req(input$compare_a_yr, compare_a())
+    if (input$compare_a %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      yr <- as.character(input$compare_a_yr)
+      d <- compare_a_name()[[`yr`]]
+    } else {
+      yr <- as.character(input$compare_a_yr)
+      d <- compare_a()[[`yr`]]
+    }
+
+  })
+
+  cm <- reactive({
+    req(input$compare_a_meas, cw())
+    ms <- as.character(input$compare_a_meas)
+    d <- cw()[["measures"]][[`ms`]]
+
+  })
+
+
+  ## Panel 2 selections ----
+  listen_compare2 <- reactive(input$compare_a)
+
+  listen_name2 <- reactive(input$compare_b_name)
+
+  listen_compare_yr2 <- reactive(input$compare_b_yr)
+
+  listen_compare_meas2 <- reactive(input$compare_b_meas)
+
+  compare_b <- reactive({
+    req(input$compare_b)
+    for (i in seq_along(names(combine_dat))) {
+      if (input$compare_b == names(combine_dat)[i]) {
+        d <- combine_dat[[i]]
+      }
+    }
+    req(d)
+    d
+  })
+
+  observeEvent(list(compare_b(), listen_compare2()), {
+    choices <- names(compare_b())
+    freezeReactiveValue(input, "compare_b_name")
+    freezeReactiveValue(input, "compare_b_yr")
+    freezeReactiveValue(input, "compare_b_meas")
+    if (input$compare_b %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      updateSelectInput(session, inputId = "compare_b_name", choices = choices)
+    } else {
+      updateSelectInput(session, inputId = "compare_b_yr", choices = choices)
+    }
+  }, priority = 3)
+
+
+  compare_b_name <- reactive({
+    req(compare_b(), input$compare_b_name)
+    if (input$compare_b %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      for (i in seq_along(compare_b())) {
+        req(compare_b(), input$compare_b_name)
+        if (input$compare_b_name == names(compare_b())[i]) {
+          d <- compare_b()[[i]]
+        }
+      }
+      req(d)
+      d
+    }
+  })
+
+  observeEvent(list(compare_b_name(), listen_name2(), listen_compare2()), {
+    choices <- names(compare_b_name())
+    freezeReactiveValue(input, "compare_b_yr")
+    freezeReactiveValue(input, "compare_b_meas")
+    updateSelectInput(session, inputId = "compare_b_yr", choices = choices)
+  }, priority = 2)
+
+
+  compare_b_yr <- reactive({
+    req(compare_b(), input$compare_b_yr)
+    if (input$compare_b %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      for (i in seq_along(compare_b_name())) {
+        if (input$compare_b_yr == names(compare_b_name())[i]) {
+          req(compare_b_name())
+          d <- compare_b_name()[[i]][["measures"]]
+        }
+      }
+      req(d)
+      d
+    } else {
+      for (i in seq_along(compare_b())) {
+        if (input$compare_b_yr == names(compare_b())[i]) {
+          d <- compare_b()[[i]][["measures"]]
+        }
+      }
+      req(d)
+      d
+    }
+
+  })
+
+  observeEvent(list(compare_b_yr(), listen_compare2(), listen_compare_yr2()), {
+    choices <- names(compare_b_yr())
+    freezeReactiveValue(input, "compare_b_meas")
+    if (input$compare_b %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      updateSelectInput(session, inputId = "compare_b_meas", choices = choices)
+    } else {
+      updateSelectInput(session, inputId = "compare_b_meas", choices = choices)
+    }
+
+  }, priority = 1)
+
+  cw2 <- reactive({
+    req(input$compare_b_yr, compare_b())
+    if (input$compare_b %in% c('Depth to Groundwater', 'Historic Event Storm Surge', 'Future Storm Surge Flooding', 'Seawater Intrusion', 'Small Area Case Study')){
+      yr <- as.character(input$compare_b_yr)
+      d <- compare_b_name()[[`yr`]]
+    } else {
+      yr <- as.character(input$compare_b_yr)
+      d <- compare_b()[[`yr`]]
+    }
+
+  })
+
+  cm2 <- reactive({
+    req(input$compare_b_meas, cw2())
+    ms <- as.character(input$compare_b_meas)
+    d <- cw2()[["measures"]][[`ms`]]
+
+  })
+
+  renderLeafletFunctionCompare <- function(map) {
+    renderLeaflet({
+      leaflet() %>%
+        addTiles(urlTemplate = carto_url,
+                 options = providerTileOptions(minZoom = 8, maxZoom = 18)) |>
+        # addProviderTiles('CartoDB.Positron',
+        #                  options = providerTileOptions(minZoom = 9, maxZoom = 18)) %>%
+        fitBounds(esva_bbox[1], esva_bbox[2], esva_bbox[3], esva_bbox[4]) %>%
+        addResetMapButton()
+    })
+  }
+
+  ## leafletProxy Compare Function ----
+  mapProxyFunctionCompare <- function(mapData, mapId,
+                                      var, var_title,
+                                      legend_labels,
+                                      pal, sel_range, unit){
+
+    # map proxy
     proxy <- leafletProxy(mapId, data = mapData)
-    
-    ### observe
+
+    lab <- if(var_title %in% c("Median Household Income", "Median Rent", "Median house value")){
+      paste0(var_title, ": $", prettyNum(round(var,0),big.mark=","))
+    } else if(var_title %in% c("Estimated Population", "Housing Units")){
+      paste0(var_title, ": ", prettyNum(round(var,0),big.mark=",") )
+    } else if(var_title %in% c("Population under 18", "Population 65 and over","Percent White Population",
+                               "Percent Black Population","Percent Hispanic Population","Population below poverty",
+                               "High Income Households", "Vacant Housing", "Renters", "High Rent Households", "Homeowners", "High House Value"
+    )){
+      paste0(paste0(var_title, ": ", round(var,0), "%") )
+      # } else if(max(sel_range) == 100){
+      #   as.list(paste0(var_title, ": ", round(var,1), "%"))
+    } else {paste0(var_title, ": ", round(var,2), " ", unit)}
+
+
+    # observe
     observe({
       proxy %>%
         clearShapes() %>%
@@ -852,50 +1056,80 @@ server <- function(input, output, session){
                     smoothFactor = 0.2,
                     fillOpacity = 0.6,
                     fillColor = ~pal(var),
-                    # popup = lapply(lab, HTML),
-                    label = lapply(lab, HTML),
-                    highlight = highlightOptions(
-                      weight = 2,
-                      fillOpacity = 0.9,
-                      bringToFront = F)) %>%
+                    popup = ~gsub("\n", "<br>",
+                                  stringr::str_wrap(lab,
+                                                    width = 20,
+                                                    whitespace_only = FALSE)),
+                    group = var_title) %>%
         addLegend(position = 'bottomright',
                   pal = pal,
                   values = sel_range,
-                  # labFormat = function(type, breaks) {
-                  #   return(legend_labels)
-                  # },
-                  labFormat = formatted_labels,
+                  labFormat = function(type, breaks) {
+                    return(legend_labels)
+                  },
                   title = ~gsub("\n", "<br>",
                                 stringr::str_wrap(var_title,
                                                   width = 20,
                                                   whitespace_only = FALSE)),
                   opacity = 0.6)
-      
     })
+
   }
-  
+
+
+  # Build Environmental Impact Map -------------------------------------------------------
+
   # render leaflet map
-  output$map2 <- renderLeafletFunction()
-  
-  outputOptions(output, "map2", suspendWhenHidden = FALSE)
-  
-  observeEvent(listen_pop(), {
-    p <- mp()
-    
-    p <- sf::st_as_sf(p)
-    # print(p)
-    var <- p[[input$community]]
-    
-    # print(var)
- 
-    domain <- if(input$community %in% c("Median Household Income", "Estimated Population")){var %>% na.omit()}else{c(0,100)}
-    
-    pal <- colorBin(brewer.pal(5, "Purples"),
-                    domain)
-    
-    mapFunction2(p, "map2", var, input$community, pal, domain)
-    
+  output$mapcompare1 <- renderLeafletFunctionCompare()
+
+  outputOptions(output, "mapcompare1", suspendWhenHidden = FALSE)
+
+  observeEvent(list(listen_compare(), listen_compare_yr(), listen_compare_meas()), {
+    req(cm())
+    p <- cm()
+
+    name <- as.character(p$name)
+    # var <- p$map_data[[`name`]]
+
+    pal <- colorBin(p$col_pal,
+                    p$sel_range,
+                    bins = p$legend_breaks,
+                    right = TRUE,
+                    pretty = FALSE )
+
+    mapProxyFunctionCompare(p$map_data, "mapcompare1", p$map_data[[`name`]], p$title, p$legend_labels, pal, p$sel_range, p$unit)
+
   })
+
+
+  # render leaflet map
+  output$mapcompare2 <- renderLeafletFunctionCompare()
+
+  outputOptions(output, "mapcompare2", suspendWhenHidden = FALSE)
+
+  observeEvent(list(listen_compare2(), listen_compare_yr2(), listen_compare_meas2()), {
+    req(cm2)
+    p <- cm2()
+
+    name <- as.character(p$name)
+
+    pal <- colorBin(p$col_pal,
+                    p$sel_range,
+                    bins = p$legend_breaks,
+                    right = TRUE,
+                    pretty = FALSE )
+
+    mapProxyFunctionCompare(p$map_data, "mapcompare2", p$map_data[[`name`]], p$title, p$legend_labels, pal, p$sel_range, p$unit)
+
+  })
+  
+  sync_observer <- observe({
+    req(input$pages == "Compare")
+    leafletProxy("mapcompare1")  %>%
+      addLeafletsync(c("mapcompare1","mapcompare2"))
+    sync_observer$destroy()
+  })
+
   
 }
 
